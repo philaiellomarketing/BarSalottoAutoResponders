@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a1551">
+  <title>Bar Salotto — Inbox Manager</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #c3922e;
+      --gold-light: #e6b84a;
+      --gold-pale: #f5e9d0;
+      --navy: #0a1551;
+      --navy-mid: #1a2d7a;
+      --cream: #f8f6f1;
+      --cream-dark: #ede9df;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --border: #ddd7cc;
+      --red: #d63031;
+      --amber: #e17055;
+      --green: #00b894;
+      --shadow: 0 2px 8px rgba(10,21,81,.10);
+      --shadow-lg: 0 6px 24px rgba(10,21,81,.15);
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--navy);
+      color: #fff;
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.3);
+    }
+    .header-logo {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      color: var(--gold-light);
+      white-space: nowrap;
+    }
+    .header-logo span { color: #fff; font-weight: 300; }
+    .header-stats {
+      display: flex;
+      gap: 12px;
+      margin-left: auto;
+      align-items: center;
+    }
+    .stat-chip {
+      background: rgba(255,255,255,.12);
+      border-radius: 20px;
+      padding: 3px 12px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .stat-chip strong { color: var(--gold-light); }
+    .header-refresh {
+      background: none;
+      border: 1px solid rgba(255,255,255,.3);
+      color: #fff;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .header-refresh:hover { background: rgba(255,255,255,.1); }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      position: sticky;
+      top: 60px;
+      z-index: 90;
+      background: var(--cream-dark);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+    .filter-tab {
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      padding: 12px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color .15s, border-color .15s;
+    }
+    .filter-tab:hover { color: var(--navy); }
+    .filter-tab.active {
+      color: var(--navy);
+      border-bottom-color: var(--gold);
+    }
+    .filter-tab .badge {
+      display: inline-block;
+      background: var(--gold-pale);
+      color: var(--gold);
+      border-radius: 10px;
+      padding: 1px 7px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-left: 5px;
+    }
+
+    /* ── Main content ── */
+    main {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+      overflow: hidden;
+      transition: box-shadow .15s;
+    }
+    .card:hover { box-shadow: var(--shadow-lg); }
+    .card.done {
+      opacity: .55;
+      pointer-events: none;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 16px 16px 12px;
+      position: relative;
+    }
+    .priority-bar {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      border-radius: var(--radius) 0 0 0;
+    }
+    .priority-bar.urgent { background: var(--red); }
+    .priority-bar.medium { background: var(--amber); }
+    .priority-bar.low    { background: #b2bec3; }
+
+    .card-meta {
+      flex: 1;
+      min-width: 0;
+      padding-left: 4px;
+    }
+    .card-top-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+    .category-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      border-radius: 4px;
+      padding: 2px 7px;
+    }
+    .badge-dining    { background: #dfe6fd; color: #2d3e9e; }
+    .badge-catering  { background: #fde8d8; color: #9b4a1e; }
+    .badge-creator   { background: #e0f5ea; color: #1a7a45; }
+    .badge-review    { background: #fff3cd; color: #856404; }
+    .badge-donation  { background: #fde8f5; color: #8b2264; }
+    .badge-vendor    { background: #f0f0f0; color: #555; }
+    .badge-job       { background: #e8f4fd; color: #1a6b9a; }
+
+    .card-sender {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .card-date {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+    .card-subject {
+      font-size: 13px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+
+    /* ── Draft ── */
+    .draft-section {
+      border-top: 1px solid var(--border);
+      background: #fdfdfc;
+    }
+    .draft-toggle {
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--navy);
+      cursor: pointer;
+      text-align: left;
+      transition: background .12s;
+    }
+    .draft-toggle:hover { background: var(--gold-pale); }
+    .draft-toggle .chevron {
+      margin-left: auto;
+      font-size: 10px;
+      transition: transform .2s;
+    }
+    .draft-toggle.open .chevron { transform: rotate(180deg); }
+    .draft-label-tag {
+      font-size: 10px;
+      background: var(--gold-pale);
+      color: var(--gold);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+
+    .draft-body {
+      padding: 0 16px 12px;
+      display: none;
+    }
+    .draft-body.open { display: block; }
+    .draft-text {
+      font-size: 13px;
+      line-height: 1.65;
+      color: #333;
+      white-space: pre-wrap;
+      background: var(--cream);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+    }
+    .draft-edit-area {
+      width: 100%;
+      font-size: 13px;
+      line-height: 1.65;
+      color: #333;
+      background: #fff;
+      border: 2px solid var(--gold);
+      border-radius: 6px;
+      padding: 12px 14px;
+      resize: vertical;
+      min-height: 160px;
+      font-family: inherit;
+      display: none;
+    }
+    .draft-edit-area.open { display: block; }
+
+    /* ── Action bar ── */
+    .action-bar {
+      padding: 10px 16px 14px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn {
+      border: none;
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: filter .12s, transform .08s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-approve {
+      background: var(--navy);
+      color: #fff;
+    }
+    .btn-approve:hover { filter: brightness(1.2); }
+    .btn-edit {
+      background: var(--gold-pale);
+      color: var(--navy);
+      border: 1px solid var(--gold);
+    }
+    .btn-edit:hover { background: var(--gold); color: #fff; }
+    .btn-save-edit {
+      background: var(--green);
+      color: #fff;
+      display: none;
+    }
+    .btn-cancel-edit {
+      background: #eee;
+      color: #555;
+      display: none;
+    }
+    .btn-skip {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .btn-skip:hover { border-color: #aaa; color: #333; }
+    .gmail-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 6px;
+    }
+    .btn-gmail {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 10px;
+      font-size: 13px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background .12s, color .12s;
+    }
+    .btn-gmail:hover { background: var(--cream-dark); color: var(--text); }
+    .btn-gmail.archive:hover { background: #e8f4fd; color: #1a6b9a; }
+    .btn-gmail.trash:hover   { background: #fde8d8; color: var(--red); }
+    .btn-gmail.flag:hover    { background: #fff3cd; color: #856404; }
+    .btn-gmail.flagged       { color: #e6b84a; border-color: #e6b84a; background: #fff9ec; }
+
+    /* ── Creator profile card ── */
+    .creator-profile {
+      background: var(--gold-pale);
+      border: 1px solid rgba(195,146,46,.3);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      font-size: 12px;
+    }
+    .creator-profile h4 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--gold);
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .creator-stats {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .creator-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .creator-stat .label { color: var(--text-muted); font-size: 11px; }
+    .creator-stat .value { font-weight: 700; font-size: 13px; color: var(--navy); }
+    .creator-rec {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .rec-approve { background: #e0f5ea; color: #1a7a45; }
+    .rec-caution { background: #fff3cd; color: #856404; }
+    .rec-decline { background: #fde8d8; color: var(--red); }
+
+    /* ── Toast notification ── */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .toast {
+      background: var(--navy);
+      color: #fff;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 13px;
+      box-shadow: var(--shadow-lg);
+      animation: toast-in .2s ease;
+      max-width: 320px;
+    }
+    .toast.success { border-left: 4px solid var(--green); }
+    .toast.info    { border-left: 4px solid var(--gold); }
+    .toast.warning { border-left: 4px solid var(--amber); }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state h3 { font-size: 16px; color: var(--navy); margin-bottom: 6px; }
+
+    /* ── Gmail connect banner ── */
+    .connect-banner {
+      background: var(--gold-pale);
+      border: 1px solid rgba(195,146,46,.4);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 13px;
+    }
+    .connect-banner .icon { font-size: 22px; }
+    .connect-banner strong { display: block; color: var(--navy); margin-bottom: 2px; }
+    .connect-banner a {
+      color: var(--gold);
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .connect-banner a:hover { text-decoration: underline; }
+    .banner-dismiss {
+      margin-left: auto;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 18px;
+      line-height: 1;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-logo">Bar Salotto <span>/ Inbox Manager</span></div>
+  <div class="header-stats">
+    <div class="stat-chip">Pending: <strong id="stat-pending">0</strong></div>
+    <div class="stat-chip">Done today: <strong id="stat-done">0</strong></div>
+    <button class="header-refresh" onclick="refreshStats()">↺ Refresh</button>
+  </div>
+</header>
+
+<div class="filter-bar" id="filter-bar">
+  <button class="filter-tab active" data-filter="all">All <span class="badge" id="badge-all">0</span></button>
+  <button class="filter-tab" data-filter="dining">Group Dining <span class="badge" id="badge-dining">0</span></button>
+  <button class="filter-tab" data-filter="catering">Catering <span class="badge" id="badge-catering">0</span></button>
+  <button class="filter-tab" data-filter="creator">Creator <span class="badge" id="badge-creator">0</span></button>
+  <button class="filter-tab" data-filter="review">Review <span class="badge" id="badge-review">0</span></button>
+  <button class="filter-tab" data-filter="donation">Donation <span class="badge" id="badge-donation">0</span></button>
+  <button class="filter-tab" data-filter="vendor">Vendor <span class="badge" id="badge-vendor">0</span></button>
+  <button class="filter-tab" data-filter="job">Job App <span class="badge" id="badge-job">0</span></button>
+</div>
+
+<main>
+  <div class="connect-banner" id="connect-banner">
+    <span class="icon">📬</span>
+    <div>
+      <strong>Gmail Actions Not Yet Connected</strong>
+      "Save to Drafts", Archive, Trash, and Flag will use fallback mode until the Gmail API is wired up.
+      <a href="#setup">See setup guide ↓</a>
+    </div>
+    <button class="banner-dismiss" onclick="dismissBanner()" title="Dismiss">×</button>
+  </div>
+
+  <div id="cards-container"></div>
+
+  <div class="empty-state" id="empty-state" style="display:none">
+    <div class="icon">✅</div>
+    <h3>All clear</h3>
+    <p>No pending items in this category.</p>
+  </div>
+</main>
+
+<div id="toast-container"></div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+
+const ITEMS = [
+  {
+    id: 'david-nickel',
+    category: 'dining',
+    priority: 'urgent',
+    sender: 'David Nickel',
+    email: 'david.nickel@example.com',
+    subject: 'Large Group Reservation — May 28',
+    date: 'May 20',
+    threadId: null,
+    creator: null,
+    draft: `Hi David —
+
+Thanks for reaching out! We'd love to host your group on May 28. For a party of that size, I'd recommend giving us a call so we can confirm availability and make sure everything is set up just right for you.
+
+You can reach us directly at (224) 587-8159.
+
+Looking forward to it!
+
+Phil
+Manager, Bar Salotto`,
+  },
+  {
+    id: 'jara-kern',
+    category: 'catering',
+    priority: 'medium',
+    sender: 'Jara Kern',
+    email: 'jara.kern@example.com',
+    subject: 'Catering Inquiry — June 13 Event',
+    date: 'May 19',
+    threadId: null,
+    creator: null,
+    draft: `Hi Jara —
+
+Thank you for thinking of Bar Salotto for your June 13 event! We'd love to help.
+
+All catering orders can be placed online at barsalotto.com/order-catering — you'll find our full menu, pricing, and serving sizes at barsalotto.com/catering. We accept catering orders up to 24 hours prior to your desired pickup time, so you'll have plenty of lead time for June 13.
+
+If you have any specific questions about menu items, gluten-free options, or quantities, feel free to reply here and I'm happy to help.
+
+Phil
+Manager, Bar Salotto`,
+  },
+  {
+    id: 'allison-bulson',
+    category: 'dining',
+    priority: 'medium',
+    sender: 'Allison Bulson',
+    email: 'allison.bulson@example.com',
+    subject: 'Group Reservation Request — June 11',
+    date: 'May 18',
+    threadId: null,
+    creator: null,
+    draft: `Hi Allison —
+
+Thanks for reaching out! We'd be happy to accommodate your group on June 11. Please give us a call at (224) 587-8159 so we can confirm availability and nail down the details for you.
+
+Talk soon!
+
+Phil
+Manager, Bar Salotto`,
+  },
+  {
+    id: 'tim-wayman',
+    category: 'donation',
+    priority: 'medium',
+    sender: 'Tim Wayman',
+    email: 'tim.wayman@familyforward.org',
+    subject: 'FamilyForward Donation Request',
+    date: 'May 18',
+    threadId: null,
+    creator: null,
+    draft: `Hi Tim —
+
+Thank you for everything FamilyForward does for the community — it means a lot to us. Our donation process has moved online and all requests are handled through our form at barsalotto.com/donation. Funds are limited and allocated on a first-come, first-served basis following January 1 each year, so I'd encourage you to submit there to get in the queue.
+
+Thanks again, and we hope to see you in soon.
+
+Phil
+Manager, Bar Salotto`,
+  },
+  {
+    id: 'maddie-urban',
+    category: 'creator',
+    priority: 'medium',
+    sender: 'Maddie Urban',
+    email: 'maddie@maddieurbs.com',
+    subject: 'Collab Inquiry — Girls\' Night Content',
+    date: 'May 19',
+    threadId: null,
+    creator: {
+      name: 'Maddie Urban',
+      handle: '@maddieurbs',
+      platforms: 'Instagram + TikTok',
+      followers: '~2,200 (IG)',
+      contentType: 'Lifestyle, dining, girls\' night, aesthetic',
+      engagement: '~65–150 interactions/post (est. 3–7%)',
+      ask: 'Hosted dinner for 3 — Reels + Stories',
+      recommendation: 'approve',
+      recText: '✅ Low-risk collab — fits the vibe',
+    },
+    draft: `Hi Maddie —
+
+Love the content — your girls' night aesthetic is right up our alley. We'd be happy to host you and your group!
+
+We're open to May 31 or June 5 in the evening. Would you mind sharing your media kit or current follower stats so we can lock in the details on our end? Once we're aligned, we'll get a date on the books.
+
+Looking forward to it!
+
+Phil
+Manager, Bar Salotto`,
+  },
+  {
+    id: 'jim-f',
+    category: 'review',
+    priority: 'low',
+    sender: 'Jim F. (Yelp)',
+    email: null,
+    subject: '5-Star Yelp Review',
+    date: 'May 17',
+    threadId: null,
+    creator: null,
+    draft: `Jim, thank you so much for the kind words! We're thrilled you enjoyed the food and the atmosphere — comments like yours truly make our day. We hope to see you back soon!
+
+— Phil & the Bar Salotto Team`,
+  },
+  {
+    id: 'niamya-madison',
+    category: 'creator',
+    priority: 'low',
+    sender: 'Nia\'Mya Madison',
+    email: 'niamya@niamyamadison.com',
+    subject: 'Restaurant Visibility Collaboration',
+    date: 'May 22',
+    threadId: null,
+    creator: {
+      name: 'Nia\'Mya Madison',
+      handle: '@themadisonapproach',
+      platforms: 'Instagram, YouTube, Lemon8',
+      followers: 'Not verified',
+      contentType: 'Social media management / food content (unconfirmed)',
+      engagement: 'Cannot estimate — stats not provided',
+      ask: 'Not specified',
+      recommendation: 'caution',
+      recText: '⚠️ Request media kit before committing',
+    },
+    draft: `Hi Nia'Mya —
+
+Thank you for reaching out — we're always interested in connecting with local creators who love food and hospitality! Your background in social media strategy is interesting and we'd love to learn more about what you have in mind.
+
+Could you share a media kit or some details on your current follower numbers, platforms, and what kind of content you'd create for us? That'll help us figure out the best fit on our end.
+
+Looking forward to hearing more!
+
+Phil
+Manager, Bar Salotto`,
+  },
+  {
+    id: 'mark-smidt',
+    category: 'vendor',
+    priority: 'low',
+    sender: 'Mark Smidt — Testa Produce',
+    email: 'mark@testaproduce.com',
+    subject: 'Wholesale Produce Partnership',
+    date: 'May 16',
+    threadId: null,
+    creator: null,
+    draft: `Thank you for contacting Bar Salotto. While we appreciate your outreach, our general inbox is reserved for guest-related matters. We do not review or respond to vendor solicitations, promotional messages, marketing proposals, or other business-related outreach submitted through this channel.
+
+We kindly ask that you discontinue further solicitation emails to this address.
+
+Thank you for your understanding.
+
+Phil
+Manager, Bar Salotto`,
+  },
+  {
+    id: 'hannah-benson',
+    category: 'vendor',
+    priority: 'low',
+    sender: 'Hannah Benson',
+    email: 'hannah@hannahbenson.art',
+    subject: 'Mural / Art Collaboration Proposal',
+    date: 'May 15',
+    threadId: null,
+    creator: null,
+    draft: `Thank you for contacting Bar Salotto. While we appreciate your outreach, our general inbox is reserved for guest-related matters. We do not review or respond to vendor solicitations, promotional messages, marketing proposals, or other business-related outreach submitted through this channel.
+
+We kindly ask that you discontinue further solicitation emails to this address.
+
+Thank you for your understanding.
+
+Phil
+Manager, Bar Salotto`,
+  },
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+const STATE_KEY = 'bs-inbox-state';
+
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(STATE_KEY)) || {}; } catch { return {}; }
+}
+function saveState(s) {
+  localStorage.setItem(STATE_KEY, JSON.stringify(s));
+}
+
+let state = loadState(); // { [id]: { done, flagged, edited_draft } }
+
+function getItemState(id) {
+  return state[id] || {};
+}
+function updateItemState(id, patch) {
+  state[id] = { ...getItemState(id), ...patch };
+  saveState(state);
+}
+
+// ── Filter ────────────────────────────────────────────────────────────────────
+
+let activeFilter = 'all';
+
+function filteredItems() {
+  return ITEMS.filter(item => {
+    const s = getItemState(item.id);
+    if (s.done) return false;
+    if (activeFilter === 'all') return true;
+    return item.category === activeFilter;
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+
+function render() {
+  const container = document.getElementById('cards-container');
+  const items = filteredItems();
+  container.innerHTML = items.map(renderCard).join('');
+  document.getElementById('empty-state').style.display = items.length ? 'none' : 'block';
+  updateBadges();
+  updateHeaderStats();
+  bindCardEvents();
+}
+
+function renderCard(item) {
+  const s = getItemState(item.id);
+  const draft = s.edited_draft || item.draft;
+  const flagClass = s.flagged ? ' flagged' : '';
+
+  const creatorHtml = item.creator ? renderCreatorProfile(item.creator) : '';
+
+  const recClass = {
+    approve: 'rec-approve',
+    caution: 'rec-caution',
+    decline: 'rec-decline',
+  }[item.creator?.recommendation] || 'rec-caution';
+
+  return `
+<div class="card" id="card-${item.id}" data-id="${item.id}" data-category="${item.category}">
+  <div class="card-header">
+    <div class="priority-bar ${item.priority}"></div>
+    <div class="card-meta">
+      <div class="card-top-row">
+        <span class="category-badge badge-${item.category}">${categoryLabel(item.category)}</span>
+        <span class="card-sender">${esc(item.sender)}</span>
+        <span class="card-date">${esc(item.date)}</span>
+      </div>
+      <div class="card-subject">${esc(item.subject)}</div>
+    </div>
+  </div>
+
+  <div class="draft-section">
+    <button class="draft-toggle" onclick="toggleDraft('${item.id}')">
+      <span>📝</span>
+      <span>Draft Response</span>
+      ${s.edited_draft ? '<span class="draft-label-tag">EDITED</span>' : ''}
+      <span class="chevron">▼</span>
+    </button>
+    <div class="draft-body" id="draft-body-${item.id}">
+      ${creatorHtml}
+      <pre class="draft-text" id="draft-text-${item.id}">${esc(draft)}</pre>
+      <textarea class="draft-edit-area" id="draft-edit-${item.id}" spellcheck="true">${esc(draft)}</textarea>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <button class="btn btn-approve" onclick="approveDraft('${item.id}')">✅ Save to Drafts</button>
+    <button class="btn btn-edit" id="btn-edit-${item.id}" onclick="startEdit('${item.id}')">✏️ Edit</button>
+    <button class="btn btn-save-edit" id="btn-save-${item.id}" onclick="saveEdit('${item.id}')">💾 Save</button>
+    <button class="btn btn-cancel-edit" id="btn-cancel-${item.id}" onclick="cancelEdit('${item.id}')">Cancel</button>
+    <button class="btn btn-skip" onclick="skipItem('${item.id}')">Skip</button>
+    <div class="gmail-actions">
+      <button class="btn-gmail archive" title="Archive" onclick="gmailAction('${item.id}', 'archive')">📦</button>
+      <button class="btn-gmail trash" title="Move to Trash" onclick="gmailAction('${item.id}', 'trash')">🗑️</button>
+      <button class="btn-gmail flag${flagClass}" id="btn-flag-${item.id}" title="Flag / Star" onclick="gmailAction('${item.id}', 'flag')">🚩</button>
+    </div>
+  </div>
+</div>`;
+}
+
+function renderCreatorProfile(c) {
+  const recClass = { approve: 'rec-approve', caution: 'rec-caution', decline: 'rec-decline' }[c.recommendation] || 'rec-caution';
+  return `
+<div class="creator-profile">
+  <h4>Creator Profile</h4>
+  <div class="creator-stats">
+    <div class="creator-stat"><span class="label">Handle</span><span class="value">${esc(c.handle)}</span></div>
+    <div class="creator-stat"><span class="label">Platforms</span><span class="value">${esc(c.platforms)}</span></div>
+    <div class="creator-stat"><span class="label">Followers</span><span class="value">${esc(c.followers)}</span></div>
+    <div class="creator-stat"><span class="label">Engagement</span><span class="value">${esc(c.engagement)}</span></div>
+    <div class="creator-stat"><span class="label">Content</span><span class="value">${esc(c.contentType)}</span></div>
+    <div class="creator-stat"><span class="label">Asking for</span><span class="value">${esc(c.ask)}</span></div>
+  </div>
+  <span class="creator-rec ${recClass}">${c.recText}</span>
+</div>`;
+}
+
+function categoryLabel(cat) {
+  return { dining:'Group Dining', catering:'Catering', creator:'Creator', review:'Review', donation:'Donation', vendor:'Vendor', job:'Job App' }[cat] || cat;
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Card interactions ─────────────────────────────────────────────────────────
+
+function bindCardEvents() {
+  // auto-expand first card's draft
+  const first = filteredItems()[0];
+  if (first) {
+    const body = document.getElementById(`draft-body-${first.id}`);
+    const toggle = document.querySelector(`#card-${first.id} .draft-toggle`);
+    if (body && !body.classList.contains('open')) {
+      body.classList.add('open');
+      if (toggle) toggle.classList.add('open');
+    }
+  }
+}
+
+function toggleDraft(id) {
+  const body = document.getElementById(`draft-body-${id}`);
+  const toggle = document.querySelector(`#card-${id} .draft-toggle`);
+  body.classList.toggle('open');
+  toggle.classList.toggle('open');
+}
+
+function startEdit(id) {
+  const s = getItemState(id);
+  const draft = s.edited_draft || ITEMS.find(i => i.id === id).draft;
+  document.getElementById(`draft-text-${id}`).style.display = 'none';
+  const ta = document.getElementById(`draft-edit-${id}`);
+  ta.value = draft;
+  ta.classList.add('open');
+  document.getElementById(`btn-edit-${id}`).style.display = 'none';
+  document.getElementById(`btn-save-${id}`).style.display = 'inline-flex';
+  document.getElementById(`btn-cancel-${id}`).style.display = 'inline-flex';
+  const body = document.getElementById(`draft-body-${id}`);
+  if (!body.classList.contains('open')) toggleDraft(id);
+}
+
+function saveEdit(id) {
+  const val = document.getElementById(`draft-edit-${id}`).value;
+  updateItemState(id, { edited_draft: val });
+  toast('Draft saved.', 'info');
+  render();
+}
+
+function cancelEdit(id) {
+  document.getElementById(`draft-text-${id}`).style.display = '';
+  document.getElementById(`draft-edit-${id}`).classList.remove('open');
+  document.getElementById(`btn-edit-${id}`).style.display = '';
+  document.getElementById(`btn-save-${id}`).style.display = 'none';
+  document.getElementById(`btn-cancel-${id}`).style.display = 'none';
+}
+
+// ── Gmail actions ─────────────────────────────────────────────────────────────
+
+async function approveDraft(id) {
+  const item = ITEMS.find(i => i.id === id);
+  const s = getItemState(id);
+  const draftBody = s.edited_draft || item.draft;
+
+  // Try Cloudflare Function API first
+  const result = await callApi('create_draft', {
+    id, to: item.email, subject: `Re: ${item.subject}`, body: draftBody
+  });
+
+  if (result.ok) {
+    toast(`Draft saved to Gmail for ${item.sender}.`, 'success');
+  } else {
+    // Fallback: open mailto
+    const mailto = `mailto:${item.email || ''}?subject=${encodeURIComponent('Re: ' + item.subject)}&body=${encodeURIComponent(draftBody)}`;
+    window.open(mailto);
+    toast(`Opened in mail client (Gmail API not connected).`, 'warning');
+  }
+  markDone(id);
+}
+
+async function gmailAction(id, action) {
+  const item = ITEMS.find(i => i.id === id);
+
+  if (action === 'flag') {
+    const s = getItemState(id);
+    const nowFlagged = !s.flagged;
+    updateItemState(id, { flagged: nowFlagged });
+    const btn = document.getElementById(`btn-flag-${id}`);
+    if (btn) btn.classList.toggle('flagged', nowFlagged);
+    toast(nowFlagged ? `Flagged: ${item.sender}` : `Unflagged: ${item.sender}`, 'info');
+
+    await callApi('flag', { id, flagged: nowFlagged });
+    return;
+  }
+
+  const result = await callApi(action, { id });
+  const labels = { archive: '📦 Archived', trash: '🗑️ Moved to trash' };
+  if (result.ok) {
+    toast(`${labels[action]}: ${item.sender}`, 'success');
+  } else {
+    toast(`${labels[action]}: ${item.sender} (Gmail API not connected — marked locally)`, 'warning');
+  }
+  if (action !== 'flag') markDone(id);
+}
+
+async function callApi(action, payload) {
+  try {
+    const res = await fetch('/api/gmail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...payload }),
+    });
+    if (res.ok) return { ok: true, data: await res.json() };
+    return { ok: false };
+  } catch {
+    return { ok: false };
+  }
+}
+
+function skipItem(id) {
+  toast('Skipped — item stays in queue.', 'info');
+}
+
+function markDone(id) {
+  updateItemState(id, { done: true });
+  const card = document.getElementById(`card-${id}`);
+  if (card) {
+    card.classList.add('done');
+    setTimeout(() => render(), 600);
+  }
+  updateHeaderStats();
+}
+
+// ── Badges & stats ────────────────────────────────────────────────────────────
+
+function updateBadges() {
+  const cats = ['all','dining','catering','creator','review','donation','vendor','job'];
+  const counts = {};
+  cats.forEach(c => counts[c] = 0);
+  ITEMS.forEach(item => {
+    if (getItemState(item.id).done) return;
+    counts.all++;
+    counts[item.category] = (counts[item.category] || 0) + 1;
+  });
+  cats.forEach(c => {
+    const el = document.getElementById(`badge-${c}`);
+    if (el) el.textContent = counts[c] || 0;
+  });
+}
+
+function updateHeaderStats() {
+  const pending = ITEMS.filter(i => !getItemState(i.id).done).length;
+  const done = ITEMS.filter(i => getItemState(i.id).done).length;
+  document.getElementById('stat-pending').textContent = pending;
+  document.getElementById('stat-done').textContent = done;
+}
+
+function refreshStats() {
+  toast('Refreshed.', 'info');
+  render();
+}
+
+// ── Filter tabs ───────────────────────────────────────────────────────────────
+
+document.getElementById('filter-bar').addEventListener('click', e => {
+  const tab = e.target.closest('.filter-tab');
+  if (!tab) return;
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  activeFilter = tab.dataset.filter;
+  render();
+});
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+
+function toast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── Banner ────────────────────────────────────────────────────────────────────
+
+function dismissBanner() {
+  document.getElementById('connect-banner').style.display = 'none';
+  localStorage.setItem('bs-banner-dismissed', '1');
+}
+
+if (localStorage.getItem('bs-banner-dismissed')) {
+  document.getElementById('connect-banner').style.display = 'none';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+render();
+</script>
+</body>
+</html>
