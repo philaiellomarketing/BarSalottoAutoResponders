@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a1551">
+  <title>Bar Salotto — Google Reviews</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --gold: #c3922e; --gold-light: #e6b84a; --gold-pale: #f5e9d0;
+      --navy: #0a1551; --cream: #f8f6f1; --cream-dark: #ede9df;
+      --text: #1a1a1a; --text-muted: #666; --border: #ddd7cc;
+      --red: #d63031; --amber: #e17055; --green: #00b894;
+      --shadow: 0 2px 8px rgba(10,21,81,.10); --shadow-lg: 0 6px 24px rgba(10,21,81,.15);
+      --radius: 10px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--cream); color: var(--text); min-height: 100vh; }
+
+    header { position: sticky; top: 0; z-index: 100; background: var(--navy); color: #fff;
+      padding: 0 24px; height: 60px; display: flex; align-items: center; gap: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.3); }
+    .header-logo { font-size: 18px; font-weight: 700; letter-spacing: .03em; color: var(--gold-light); white-space: nowrap; }
+    .header-logo span { color: #fff; font-weight: 300; }
+    .header-nav { margin-left: auto; display: flex; gap: 8px; }
+    .header-nav a { color: #fff; text-decoration: none; font-size: 13px; padding: 6px 12px;
+      border-radius: 6px; border: 1px solid rgba(255,255,255,.25); transition: background .15s; }
+    .header-nav a:hover { background: rgba(255,255,255,.1); }
+    .header-nav a.active { background: var(--gold); border-color: var(--gold); }
+
+    .subbar { position: sticky; top: 60px; z-index: 90; background: var(--cream-dark);
+      border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex;
+      align-items: center; gap: 14px; font-size: 13px; flex-wrap: wrap; }
+    .subbar .rating { font-weight: 700; color: var(--navy); }
+    .subbar .rating .stars { color: var(--gold); }
+    .tabs { display: flex; gap: 4px; margin-left: auto; }
+    .tab { background: none; border: none; border-bottom: 3px solid transparent; padding: 6px 12px;
+      font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; }
+    .tab.active { color: var(--navy); border-bottom-color: var(--gold); }
+    .tab .badge { display: inline-block; background: var(--gold-pale); color: var(--gold);
+      border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin-left: 4px; }
+
+    main { max-width: 880px; margin: 0 auto; padding: 24px 20px 60px; }
+
+    .card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 16px; overflow: hidden; }
+    .card-header { padding: 16px 16px 12px; display: flex; gap: 12px; align-items: flex-start; }
+    .avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--navy); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 16px; }
+    .review-meta { flex: 1; min-width: 0; }
+    .review-name { font-weight: 600; font-size: 14px; }
+    .review-stars { color: var(--gold); font-size: 14px; letter-spacing: 1px; }
+    .review-date { font-size: 12px; color: var(--text-muted); }
+    .manual-badge { display: inline-block; font-size: 10px; background: var(--cream-dark);
+      color: var(--text-muted); border-radius: 4px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
+    .review-body { padding: 0 16px 12px; font-size: 14px; line-height: 1.6; color: #333; }
+
+    .owner-reply { margin: 0 16px 14px; padding: 10px 14px; background: var(--gold-pale);
+      border-left: 3px solid var(--gold); border-radius: 0 6px 6px 0; font-size: 13px; line-height: 1.55; }
+    .owner-reply .tag { display: block; font-size: 10px; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+
+    .draft-section { border-top: 1px solid var(--border); background: #fdfdfc; padding: 12px 16px; }
+    .draft-label { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+      color: var(--navy); margin-bottom: 6px; display: block; }
+    .draft-edit { width: 100%; font-size: 13px; line-height: 1.6; color: #333; background: #fff;
+      border: 2px solid var(--gold); border-radius: 6px; padding: 10px 12px; resize: vertical;
+      min-height: 80px; font-family: inherit; }
+    .action-bar { padding: 10px 16px 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .btn { border: none; border-radius: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600;
+      cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: filter .12s;
+      text-decoration: none; }
+    .btn-post { background: var(--navy); color: #fff; }
+    .btn-post:hover { filter: brightness(1.2); }
+    .btn-gold { background: var(--gold); color: #fff; }
+    .btn-gold:hover { filter: brightness(1.1); }
+    .btn-skip { background: none; border: 1px solid var(--border); color: var(--text-muted); }
+    .btn-skip:hover { background: var(--cream-dark); }
+
+    /* Add review panel */
+    .add-panel { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow);
+      margin-bottom: 20px; overflow: hidden; }
+    .add-panel-header { background: var(--navy); color: #fff; padding: 12px 16px;
+      font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .add-panel-body { padding: 16px; display: grid; gap: 10px; }
+    .add-panel-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 13px; font-family: inherit; background: var(--cream); color: var(--text); }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(195,146,46,.15); }
+    .form-group textarea { resize: vertical; min-height: 70px; }
+    @media (max-width: 540px) { .add-panel-row { grid-template-columns: 1fr; } }
+
+    /* Setup / not-connected state */
+    .setup-state { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow);
+      text-align: center; padding: 44px 24px; }
+    .setup-state .icon { font-size: 44px; margin-bottom: 12px; }
+    .setup-state h3 { color: var(--navy); font-size: 18px; margin-bottom: 10px; }
+    .setup-state p { max-width: 520px; margin: 0 auto 8px; line-height: 1.6; font-size: 14px; color: var(--text-muted); }
+    .setup-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+
+    .notice-banner { background: var(--gold-pale); border: 1px solid var(--gold);
+      border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--navy);
+      margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+    .empty-state { text-align: center; padding: 50px 24px; color: var(--text-muted); }
+
+    #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { background: var(--navy); color: #fff; border-radius: 8px; padding: 10px 18px; font-size: 13px;
+      box-shadow: var(--shadow-lg); max-width: 320px; }
+    .toast.success { border-left: 4px solid var(--green); }
+    .toast.warning { border-left: 4px solid var(--amber); }
+    .toast.info    { border-left: 4px solid var(--gold); }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border);
+      border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-logo">Bar Salotto <span>/ Reviews</span></div>
+  <nav class="header-nav">
+    <a href="/dashboard/">Inbox</a>
+    <a href="/dashboard/reviews.html" class="active">★ Reviews</a>
+  </nav>
+</header>
+
+<div class="subbar">
+  <span class="rating" id="rating-summary">—</span>
+  <div class="tabs">
+    <button class="tab active" data-tab="unanswered">Needs Reply <span class="badge" id="badge-unanswered">0</span></button>
+    <button class="tab" data-tab="answered">Answered <span class="badge" id="badge-answered">0</span></button>
+  </div>
+</div>
+
+<main id="main">
+  <div class="setup-state" id="loading">
+    <div class="icon"><span class="spinner"></span></div>
+    <h3>Loading reviews…</h3>
+  </div>
+</main>
+
+<div id="toast-container"></div>
+
+<script>
+let activeTab = 'unanswered';
+let data = { answered: [], unanswered: [], meta: { total: 0, answered: 0, unanswered: 0 } };
+const drafts = {};
+const MANUAL_KEY = 'bs:manual-reviews';
+let gbpConnected = false;
+let showAddPanel = false;
+
+const STAR = n => '★'.repeat(n || 0) + '☆'.repeat(5 - (n || 0));
+
+// ── Manual review persistence ───────────────────────────────────────────────
+
+function loadManualReviews() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MANUAL_KEY) || '[]');
+    saved.forEach(r => {
+      if (!data.unanswered.find(x => x.reviewName === r.reviewName) &&
+          !data.answered.find(x => x.reviewName === r.reviewName)) {
+        data.unanswered.push(r);
+        if (!drafts[r.reviewName]) drafts[r.reviewName] = suggestDraft(r);
+      }
+    });
+    recalcMeta();
+  } catch(e) {}
+}
+
+function saveManualReviews() {
+  const manual = [
+    ...data.unanswered.filter(r => r.isManual),
+    ...data.answered.filter(r => r.isManual),
+  ];
+  localStorage.setItem(MANUAL_KEY, JSON.stringify(manual));
+}
+
+function recalcMeta() {
+  data.meta.unanswered = data.unanswered.length;
+  data.meta.answered   = data.answered.length;
+  data.meta.total      = data.unanswered.length + data.answered.length;
+}
+
+// ── Load ────────────────────────────────────────────────────────────────────
+
+async function load() {
+  try {
+    const res = await fetch('/api/reviews', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list' }),
+    });
+    if (res.status === 503) {
+      // GBP not connected — load manual reviews and show setup banner
+      loadManualReviews();
+      if (data.unanswered.length || data.answered.length) {
+        renderWithBanner();
+      } else {
+        renderSetup();
+      }
+      return;
+    }
+    if (!res.ok) { renderError(await res.text()); return; }
+    gbpConnected = true;
+    data = await res.json();
+    data.unanswered.forEach(r => { if (!drafts[r.reviewName]) drafts[r.reviewName] = suggestDraft(r); });
+    // Also merge any manual reviews not yet on Google
+    loadManualReviews();
+    render();
+  } catch (e) {
+    // Network error — still show any saved manual reviews
+    loadManualReviews();
+    if (data.unanswered.length || data.answered.length) {
+      renderWithBanner('Network error — showing saved reviews only.');
+    } else {
+      renderError(e.message);
+    }
+  }
+}
+
+// ── Draft generator ─────────────────────────────────────────────────────────
+
+function suggestDraft(r) {
+  const name = (r.reviewer && r.reviewer !== 'A Google user')
+    ? r.reviewer.split(' ')[0] : '';
+  const hi = name ? `Thank you so much, ${name}! ` : 'Thank you so much! ';
+  if (r.stars >= 4) {
+    const specifics = r.comment
+      ? `We're so glad you enjoyed your visit — ${r.comment.length > 40 ? 'it means a lot to hear feedback like yours' : 'it means the world to us'}. `
+      : `We're so glad you stopped by Bar Salotto! `;
+    return `${hi}${specifics}We can't wait to welcome you back soon.`;
+  }
+  if (r.stars === 3) {
+    return `${hi}We appreciate you taking the time to share your experience. We've noted your feedback and would love the chance to make your next visit even better — hope to see you again soon.`;
+  }
+  const sorry = name ? `We're sorry to hear this, ${name}. ` : `We're truly sorry to hear this. `;
+  return `${sorry}This isn't the experience we want for our guests, and we'd genuinely like to make it right. Please reach out to us at ciao@barsalotto.com so we can follow up personally.`;
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+
+function updateSubbar() {
+  document.getElementById('rating-summary').innerHTML =
+    `<span class="stars">★</span> ${data.meta.total || 0} reviews · ` +
+    `${data.meta.unanswered || 0} need a reply`;
+  document.getElementById('badge-unanswered').textContent = data.meta.unanswered || 0;
+  document.getElementById('badge-answered').textContent   = data.meta.answered   || 0;
+}
+
+function render() {
+  updateSubbar();
+  const list = activeTab === 'unanswered' ? data.unanswered : data.answered;
+  const main = document.getElementById('main');
+
+  let html = '';
+  if (showAddPanel) html += renderAddPanel();
+
+  if (!list.length) {
+    html += `<div class="empty-state"><div style="font-size:42px">✅</div>
+      <p style="margin-top:10px">${activeTab === 'unanswered' ? 'All reviews answered — great work!' : 'No answered reviews yet.'}</p></div>`;
+  } else {
+    html += list.map(r => activeTab === 'unanswered' ? cardUnanswered(r) : cardAnswered(r)).join('');
+  }
+
+  main.innerHTML = html;
+}
+
+function renderWithBanner(msg) {
+  updateSubbar();
+  const list = activeTab === 'unanswered' ? data.unanswered : data.answered;
+  const main = document.getElementById('main');
+
+  let html = `<div class="notice-banner">
+    <span>🔌</span>
+    <span>${msg || 'Google Business Profile not connected yet — showing manually-entered reviews.'}
+    <a href="https://github.com/philaiellomarketing/BarSalottoAutoResponders/blob/main/docs/GOOGLE_BUSINESS_PROFILE_SETUP.md"
+       target="_blank" rel="noopener" style="color:var(--navy);font-weight:600;margin-left:4px">Setup guide →</a>
+    </span></div>`;
+
+  if (showAddPanel) html += renderAddPanel();
+
+  if (!list.length) {
+    html += `<div class="empty-state"><p style="margin-bottom:16px">No reviews in queue yet.</p>
+      <button class="btn btn-gold" onclick="openAddPanel()">+ Add Review from Google</button></div>`;
+  } else {
+    html += list.map(r => activeTab === 'unanswered' ? cardUnanswered(r) : cardAnswered(r)).join('');
+  }
+
+  main.innerHTML = html;
+}
+
+function renderAddPanel() {
+  return `
+<div class="add-panel" id="add-review-panel">
+  <div class="add-panel-header">✍️ Add a Review from Google (manual entry)</div>
+  <div class="add-panel-body">
+    <div class="add-panel-row">
+      <div class="form-group">
+        <label>Reviewer Name</label>
+        <input type="text" id="mr-name" placeholder="e.g. Sarah M.">
+      </div>
+      <div class="form-group">
+        <label>Star Rating</label>
+        <select id="mr-stars">
+          <option value="5">★★★★★ (5 stars)</option>
+          <option value="4">★★★★☆ (4 stars)</option>
+          <option value="3">★★★☆☆ (3 stars)</option>
+          <option value="2">★★☆☆☆ (2 stars)</option>
+          <option value="1">★☆☆☆☆ (1 star)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Review Text (paste from Google)</label>
+      <textarea id="mr-comment" placeholder="Paste the review text here…"></textarea>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-gold" onclick="submitManualReview()">+ Add to Queue</button>
+      <button class="btn btn-skip" onclick="closeAddPanel()">Cancel</button>
+    </div>
+  </div>
+</div>`;
+}
+
+function renderSetup() {
+  document.getElementById('main').innerHTML = `
+  <div class="setup-state">
+    <div class="icon">🔌</div>
+    <h3>Google Business Profile not connected yet</h3>
+    <p>Once Google approves your API access and credentials are saved, reviews will
+       load here automatically with a suggested reply ready to approve, edit, and post.</p>
+    <p>In the meantime, you can enter reviews manually to draft replies.</p>
+    <div class="setup-actions">
+      <a href="https://github.com/philaiellomarketing/BarSalottoAutoResponders/blob/main/docs/GOOGLE_BUSINESS_PROFILE_SETUP.md"
+         target="_blank" rel="noopener" class="btn btn-post">📋 Setup Instructions</a>
+      <button class="btn btn-gold" onclick="enterManualMode()">✍️ Enter Reviews Manually</button>
+    </div>
+  </div>`;
+}
+
+function renderError(detail) {
+  document.getElementById('main').innerHTML = `
+  <div class="setup-state">
+    <div class="icon">⚠️</div>
+    <h3>Couldn't load reviews</h3>
+    <p>${esc(detail || 'Unknown error')}</p>
+    <div class="setup-actions">
+      <button class="btn btn-skip" onclick="location.reload()">↺ Retry</button>
+      <button class="btn btn-gold" onclick="enterManualMode()">✍️ Enter Reviews Manually</button>
+    </div>
+  </div>`;
+}
+
+// ── Card templates ───────────────────────────────────────────────────────────
+
+function cardUnanswered(r) {
+  const postLabel = r.isManual ? '📋 Mark as Answered' : '✅ Post Reply to Google';
+  const manualBadge = r.isManual ? `<span class="manual-badge">manual</span>` : '';
+  return `
+<div class="card" id="card-${cssId(r.reviewName)}">
+  <div class="card-header">
+    <div class="avatar">${esc((r.reviewer || '?')[0].toUpperCase())}</div>
+    <div class="review-meta">
+      <div class="review-name">${esc(r.reviewer)}${manualBadge}</div>
+      <div class="review-stars">${STAR(r.stars)}</div>
+      <div class="review-date">${fmtDate(r.createTime)}</div>
+    </div>
+  </div>
+  ${r.comment ? `<div class="review-body">${esc(r.comment)}</div>` : '<div class="review-body" style="color:#999">(rating only, no text)</div>'}
+  <div class="draft-section">
+    <span class="draft-label">📝 Suggested reply — edit before posting (no sign-off)</span>
+    <textarea class="draft-edit" id="draft-${cssId(r.reviewName)}"
+      oninput="drafts['${jsStr(r.reviewName)}']=this.value">${esc(drafts[r.reviewName] || '')}</textarea>
+  </div>
+  <div class="action-bar">
+    <button class="btn btn-post" onclick="post('${jsStr(r.reviewName)}')">${postLabel}</button>
+    <button class="btn btn-skip" onclick="skip('${jsStr(r.reviewName)}')">Skip</button>
+    ${r.isManual ? `<button class="btn btn-skip" onclick="deleteManual('${jsStr(r.reviewName)}')" style="color:var(--red);border-color:var(--red)">Delete</button>` : ''}
+  </div>
+</div>`;
+}
+
+function cardAnswered(r) {
+  const manualBadge = r.isManual ? `<span class="manual-badge">manual</span>` : '';
+  return `
+<div class="card">
+  <div class="card-header">
+    <div class="avatar">${esc((r.reviewer || '?')[0].toUpperCase())}</div>
+    <div class="review-meta">
+      <div class="review-name">${esc(r.reviewer)}${manualBadge}</div>
+      <div class="review-stars">${STAR(r.stars)}</div>
+      <div class="review-date">${fmtDate(r.createTime)}</div>
+    </div>
+  </div>
+  ${r.comment ? `<div class="review-body">${esc(r.comment)}</div>` : ''}
+  <div class="owner-reply"><span class="tag">Your reply</span>${esc(r.ownerReply || '')}</div>
+  ${r.isManual ? `<div class="action-bar"><button class="btn btn-skip" onclick="deleteManual('${jsStr(r.reviewName)}')" style="color:var(--red);border-color:var(--red);font-size:11px">Remove</button></div>` : ''}
+</div>`;
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+
+async function post(reviewName) {
+  const comment = (drafts[reviewName] || '').trim();
+  if (!comment) { toast('Reply is empty — write something first.', 'warning'); return; }
+
+  const r = data.unanswered.find(x => x.reviewName === reviewName);
+
+  if (r && r.isManual) {
+    // Manual review: just mark answered locally
+    const idx = data.unanswered.indexOf(r);
+    data.unanswered.splice(idx, 1);
+    r.ownerReply = comment;
+    data.answered.unshift(r);
+    recalcMeta();
+    saveManualReviews();
+    render();
+    toast('Marked as answered.', 'success');
+    return;
+  }
+
+  toast('Posting reply…', 'info');
+  try {
+    const res = await fetch('/api/reviews', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reply', reviewName, comment }),
+    });
+    if (res.ok) {
+      toast('Reply posted to Google!', 'success');
+      const idx = data.unanswered.findIndex(x => x.reviewName === reviewName);
+      if (idx > -1) {
+        const rv = data.unanswered.splice(idx, 1)[0];
+        rv.ownerReply = comment;
+        data.answered.unshift(rv);
+        recalcMeta();
+      }
+      render();
+    } else {
+      const detail = await res.text();
+      toast('Post failed — ' + detail.slice(0, 100), 'warning');
+    }
+  } catch (e) { toast('Network error: ' + e.message, 'warning'); }
+}
+
+function skip(reviewName) {
+  const idx = data.unanswered.findIndex(r => r.reviewName === reviewName);
+  if (idx > -1) {
+    data.unanswered.splice(idx, 1);
+    recalcMeta();
+    saveManualReviews();
+    rerender();
+    toast('Skipped for now.', 'info');
+  }
+}
+
+function deleteManual(reviewName) {
+  data.unanswered = data.unanswered.filter(r => r.reviewName !== reviewName);
+  data.answered   = data.answered.filter(r => r.reviewName !== reviewName);
+  recalcMeta();
+  saveManualReviews();
+  rerender();
+  toast('Removed.', 'info');
+}
+
+// ── Manual entry mode ────────────────────────────────────────────────────────
+
+function enterManualMode() {
+  showAddPanel = true;
+  loadManualReviews();
+  rerender();
+}
+
+function openAddPanel() {
+  showAddPanel = true;
+  rerender();
+}
+
+function closeAddPanel() {
+  showAddPanel = false;
+  rerender();
+}
+
+function submitManualReview() {
+  const name    = (document.getElementById('mr-name')?.value || '').trim();
+  const stars   = parseInt(document.getElementById('mr-stars')?.value || '5');
+  const comment = (document.getElementById('mr-comment')?.value || '').trim();
+  if (!name) { toast('Please enter a reviewer name.', 'warning'); return; }
+
+  const reviewName = 'manual-' + Date.now();
+  const r = {
+    reviewName,
+    reviewer: name,
+    stars,
+    comment,
+    createTime: new Date().toISOString(),
+    ownerReply: null,
+    isManual: true,
+  };
+  data.unanswered.push(r);
+  drafts[reviewName] = suggestDraft(r);
+  recalcMeta();
+  saveManualReviews();
+  showAddPanel = false;
+  rerender();
+  toast(`Review from ${name} added.`, 'success');
+}
+
+// Re-render using current state (GBP connected or not)
+function rerender() {
+  if (gbpConnected) {
+    render();
+  } else {
+    renderWithBanner();
+  }
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+
+document.querySelector('.tabs').addEventListener('click', e => {
+  const t = e.target.closest('.tab'); if (!t) return;
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active'); activeTab = t.dataset.tab;
+  rerender();
+});
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function jsStr(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function cssId(s){ return String(s).replace(/[^a-z0-9]/gi,'-'); }
+function fmtDate(iso){ if(!iso) return ''; try { return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); } catch { return ''; } }
+function toast(msg, type='info'){
+  const c=document.getElementById('toast-container');
+  const el=document.createElement('div');
+  el.className='toast '+type; el.textContent=msg;
+  c.appendChild(el); setTimeout(()=>el.remove(),3800);
+}
+
+load();
+</script>
+</body>
+</html>
