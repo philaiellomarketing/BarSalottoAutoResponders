@@ -1029,9 +1029,27 @@ if (localStorage.getItem('bs-banner-dismissed')) {
   document.getElementById('connect-banner').style.display = 'none';
 }
 
+// Auto-hide the banner if Gmail API responds successfully
+async function checkGmailConnection() {
+  if (localStorage.getItem('bs-banner-dismissed')) return;
+  try {
+    const res = await fetch('/api/gmail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'ping' }),
+    });
+    // Any response other than 503 means the Function is reachable and credentials loaded
+    if (res.status !== 503) {
+      document.getElementById('connect-banner').style.display = 'none';
+      localStorage.setItem('bs-banner-dismissed', '1');
+    }
+  } catch {}
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 render();
+checkGmailConnection();
 </script>
 </body>
 </html>
