@@ -15,6 +15,6 @@ pages_build_output_dir = "."
 #   3. wrangler kv key put --binding=BS_KV "bs:gmail:credentials" \
 #        '{"client_id":"...","client_secret":"...","refresh_token":"..."}'
 #
-# [[kv_namespaces]]
-# binding = "BS_KV"
-# id = "<real-kv-namespace-id>"
+[[kv_namespaces]]
+binding = "BS_KV"
+id = "35d90b858ebc4771840a23fac6870e94"
