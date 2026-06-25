@@ -87,7 +87,7 @@ async function handleListInbox(accessToken, env, corsHeaders) {
 
 async function fetchThreadItem(id, listSnippet, accessToken, env) {
   const res = await gmailFetch(accessToken, 'GET',
-    `/users/me/threads/${id}?format=metadata&metadataHeaders=Subject,From,Date`);
+    `/users/me/threads/${id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`);
   if (!res.ok) return null;
   const thread = await res.json();
 

@@ -215,6 +215,15 @@
       text-overflow: ellipsis;
       margin-bottom: 2px;
     }
+    .card-snippet {
+      padding: 8px 16px 10px 28px;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      border-top: 1px solid var(--border);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
 
     /* ── Draft ── */
     .draft-section {
@@ -601,6 +610,7 @@ function renderCard(item) {
       <div class="card-subject">${esc(item.subject)}</div>
     </div>
   </div>
+  ${item.snippet ? `<div class="card-snippet">${esc(item.snippet)}</div>` : ''}
 
   <div class="draft-section">
     <button class="draft-toggle" onclick="toggleDraft('${item.id}')">
