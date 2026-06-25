@@ -501,12 +501,24 @@
     <button class="banner-dismiss" onclick="dismissBanner()" title="Dismiss">×</button>
   </div>
 
+  <div id="loading-state" style="text-align:center;padding:60px 24px;color:var(--text-muted)">
+    <div style="font-size:28px;margin-bottom:10px">📬</div>
+    <div style="font-size:14px">Loading inbox…</div>
+  </div>
+
   <div id="cards-container"></div>
 
   <div class="empty-state" id="empty-state" style="display:none">
     <div class="icon">✅</div>
     <h3>All clear</h3>
     <p>No pending items in this category.</p>
+  </div>
+
+  <div class="empty-state" id="error-state" style="display:none">
+    <div class="icon">⚠️</div>
+    <h3>Couldn't load inbox</h3>
+    <p id="error-detail" style="font-size:13px;color:var(--text-muted)"></p>
+    <button class="btn btn-refresh" onclick="loadInbox()" style="margin-top:14px;background:var(--navy);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">↺ Retry</button>
   </div>
 </main>
 
@@ -515,202 +527,7 @@
 <script>
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-const ITEMS = [
-  {
-    id: 'david-nickel',
-    category: 'dining',
-    priority: 'urgent',
-    sender: 'David Nickel',
-    email: 'david.nickel@example.com',
-    subject: 'Large Group Reservation — May 28',
-    date: 'May 20',
-    threadId: null,
-    creator: null,
-    draft: `Hi David —
-
-Thanks for reaching out! We'd love to host your group on May 28. For a party of that size, I'd recommend giving us a call so we can confirm availability and make sure everything is set up just right for you.
-
-You can reach us directly at (224) 587-8159.
-
-Looking forward to it!
-
-Phil
-Manager, Bar Salotto`,
-  },
-  {
-    id: 'jara-kern',
-    category: 'catering',
-    priority: 'medium',
-    sender: 'Jara Kern',
-    email: 'jara.kern@example.com',
-    subject: 'Catering Inquiry — June 13 Event',
-    date: 'May 19',
-    threadId: null,
-    creator: null,
-    draft: `Hi Jara —
-
-Thank you for thinking of Bar Salotto for your June 13 event! We'd love to help.
-
-All catering orders can be placed online at barsalotto.com/order-catering — you'll find our full menu, pricing, and serving sizes at barsalotto.com/catering. We accept catering orders up to 24 hours prior to your desired pickup time, so you'll have plenty of lead time for June 13.
-
-If you have any specific questions about menu items, gluten-free options, or quantities, feel free to reply here and I'm happy to help.
-
-Phil
-Manager, Bar Salotto`,
-  },
-  {
-    id: 'allison-bulson',
-    category: 'dining',
-    priority: 'medium',
-    sender: 'Allison Bulson',
-    email: 'allison.bulson@example.com',
-    subject: 'Group Reservation Request — June 11',
-    date: 'May 18',
-    threadId: null,
-    creator: null,
-    draft: `Hi Allison —
-
-Thanks for reaching out! We'd be happy to accommodate your group on June 11. Please give us a call at (224) 587-8159 so we can confirm availability and nail down the details for you.
-
-Talk soon!
-
-Phil
-Manager, Bar Salotto`,
-  },
-  {
-    id: 'tim-wayman',
-    category: 'donation',
-    priority: 'medium',
-    sender: 'Tim Wayman',
-    email: 'tim.wayman@familyforward.org',
-    subject: 'FamilyForward Donation Request',
-    date: 'May 18',
-    threadId: null,
-    creator: null,
-    draft: `Hi Tim —
-
-Thank you for everything FamilyForward does for the community — it means a lot to us. Our donation process has moved online and all requests are handled through our form at barsalotto.com/donation. Funds are limited and allocated on a first-come, first-served basis following January 1 each year, so I'd encourage you to submit there to get in the queue.
-
-Thanks again, and we hope to see you in soon.
-
-Phil
-Manager, Bar Salotto`,
-  },
-  {
-    id: 'maddie-urban',
-    category: 'creator',
-    priority: 'medium',
-    sender: 'Maddie Urban',
-    email: 'maddie@maddieurbs.com',
-    subject: 'Collab Inquiry — Girls\' Night Content',
-    date: 'May 19',
-    threadId: null,
-    creator: {
-      name: 'Maddie Urban',
-      handle: '@maddieurbs',
-      platforms: 'Instagram + TikTok',
-      followers: '~2,200 (IG)',
-      contentType: 'Lifestyle, dining, girls\' night, aesthetic',
-      engagement: '~65–150 interactions/post (est. 3–7%)',
-      ask: 'Hosted dinner for 3 — Reels + Stories',
-      recommendation: 'approve',
-      recText: '✅ Low-risk collab — fits the vibe',
-    },
-    draft: `Hi Maddie —
-
-Love the content — your girls' night aesthetic is right up our alley. We'd be happy to host you and your group!
-
-We're open to May 31 or June 5 in the evening. Would you mind sharing your media kit or current follower stats so we can lock in the details on our end? Once we're aligned, we'll get a date on the books.
-
-Looking forward to it!
-
-Phil
-Manager, Bar Salotto`,
-  },
-  {
-    id: 'jim-f',
-    category: 'review',
-    priority: 'low',
-    sender: 'Jim F. (Yelp)',
-    email: null,
-    subject: '5-Star Yelp Review',
-    date: 'May 17',
-    threadId: null,
-    creator: null,
-    draft: `Jim, thank you so much for the kind words! We're thrilled you enjoyed the food and the atmosphere — comments like yours truly make our day. We hope to see you back soon!
-
-— Phil & the Bar Salotto Team`,
-  },
-  {
-    id: 'niamya-madison',
-    category: 'creator',
-    priority: 'low',
-    sender: 'Nia\'Mya Madison',
-    email: 'niamya@niamyamadison.com',
-    subject: 'Restaurant Visibility Collaboration',
-    date: 'May 22',
-    threadId: null,
-    creator: {
-      name: 'Nia\'Mya Madison',
-      handle: '@themadisonapproach',
-      platforms: 'Instagram, YouTube, Lemon8',
-      followers: 'Not verified',
-      contentType: 'Social media management / food content (unconfirmed)',
-      engagement: 'Cannot estimate — stats not provided',
-      ask: 'Not specified',
-      recommendation: 'caution',
-      recText: '⚠️ Request media kit before committing',
-    },
-    draft: `Hi Nia'Mya —
-
-Thank you for reaching out — we're always interested in connecting with local creators who love food and hospitality! Your background in social media strategy is interesting and we'd love to learn more about what you have in mind.
-
-Could you share a media kit or some details on your current follower numbers, platforms, and what kind of content you'd create for us? That'll help us figure out the best fit on our end.
-
-Looking forward to hearing more!
-
-Phil
-Manager, Bar Salotto`,
-  },
-  {
-    id: 'mark-smidt',
-    category: 'vendor',
-    priority: 'low',
-    sender: 'Mark Smidt — Testa Produce',
-    email: 'mark@testaproduce.com',
-    subject: 'Wholesale Produce Partnership',
-    date: 'May 16',
-    threadId: null,
-    creator: null,
-    draft: `Thank you for contacting Bar Salotto. While we appreciate your outreach, our general inbox is reserved for guest-related matters. We do not review or respond to vendor solicitations, promotional messages, marketing proposals, or other business-related outreach submitted through this channel.
-
-We kindly ask that you discontinue further solicitation emails to this address.
-
-Thank you for your understanding.
-
-Phil
-Manager, Bar Salotto`,
-  },
-  {
-    id: 'hannah-benson',
-    category: 'vendor',
-    priority: 'low',
-    sender: 'Hannah Benson',
-    email: 'hannah@hannahbenson.art',
-    subject: 'Mural / Art Collaboration Proposal',
-    date: 'May 15',
-    threadId: null,
-    creator: null,
-    draft: `Thank you for contacting Bar Salotto. While we appreciate your outreach, our general inbox is reserved for guest-related matters. We do not review or respond to vendor solicitations, promotional messages, marketing proposals, or other business-related outreach submitted through this channel.
-
-We kindly ask that you discontinue further solicitation emails to this address.
-
-Thank you for your understanding.
-
-Phil
-Manager, Bar Salotto`,
-  },
-];
+let ITEMS = []; // populated by loadInbox()
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -900,7 +717,7 @@ async function approveDraft(id) {
 
   // Try Cloudflare Function API first
   const result = await callApi('create_draft', {
-    id, to: item.email, subject: `Re: ${item.subject}`, body: draftBody
+    id, threadId: item.threadId, to: item.email, subject: `Re: ${item.subject}`, body: draftBody
   });
 
   if (result.ok) {
@@ -925,11 +742,11 @@ async function gmailAction(id, action) {
     if (btn) btn.classList.toggle('flagged', nowFlagged);
     toast(nowFlagged ? `Flagged: ${item.sender}` : `Unflagged: ${item.sender}`, 'info');
 
-    await callApi('flag', { id, flagged: nowFlagged });
+    await callApi('flag', { id, threadId: item.threadId, flagged: nowFlagged });
     return;
   }
 
-  const result = await callApi(action, { id });
+  const result = await callApi(action, { id, threadId: item.threadId });
   const labels = { archive: '📦 Archived', trash: '🗑️ Moved to trash' };
   if (result.ok) {
     toast(`${labels[action]}: ${item.sender}`, 'success');
@@ -992,8 +809,8 @@ function updateHeaderStats() {
 }
 
 function refreshStats() {
-  toast('Refreshed.', 'info');
-  render();
+  toast('Refreshing inbox…', 'info');
+  loadInbox();
 }
 
 // ── Filter tabs ───────────────────────────────────────────────────────────────
@@ -1046,10 +863,53 @@ async function checkGmailConnection() {
   } catch {}
 }
 
+// ── Inbox loader ─────────────────────────────────────────────────────────────
+
+async function loadInbox() {
+  document.getElementById('loading-state').style.display = 'block';
+  document.getElementById('cards-container').innerHTML = '';
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('error-state').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/gmail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list' }),
+    });
+
+    document.getElementById('loading-state').style.display = 'none';
+
+    if (res.status === 503) {
+      document.getElementById('error-detail').textContent = 'Gmail not connected — check KV credentials.';
+      document.getElementById('error-state').style.display = 'block';
+      return;
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      document.getElementById('error-detail').textContent = err.error || `Error ${res.status}`;
+      document.getElementById('error-state').style.display = 'block';
+      return;
+    }
+
+    const { items } = await res.json();
+    ITEMS = items || [];
+
+    // Gmail connected — hide the banner permanently
+    document.getElementById('connect-banner').style.display = 'none';
+    localStorage.setItem('bs-banner-dismissed', '1');
+
+    render();
+  } catch (e) {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('error-detail').textContent = e.message;
+    document.getElementById('error-state').style.display = 'block';
+  }
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 
-render();
-checkGmailConnection();
+loadInbox();
 </script>
 </body>
 </html>
