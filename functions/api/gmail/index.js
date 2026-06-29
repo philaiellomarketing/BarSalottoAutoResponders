@@ -37,6 +37,13 @@ export async function onRequestPost(context) {
     return json({ error: 'gmail_not_configured', fallback: true }, 503, corsHeaders);
   }
 
+  // Lightweight: report which account is connected (no token refresh needed)
+  if (action === 'whoami') {
+    let email = '';
+    try { email = (await env.BS_KV.get('bs:connected:email')) || ''; } catch {}
+    return json({ email }, 200, corsHeaders);
+  }
+
   let accessToken;
   try { accessToken = await refreshAccessToken(creds); }
   catch (e) { return json({ error: 'token_refresh_failed', detail: e.message }, 502, corsHeaders); }

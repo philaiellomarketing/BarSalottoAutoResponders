@@ -471,6 +471,23 @@
       font-size: 18px;
       line-height: 1;
     }
+
+    /* Connect-account modal */
+    .modal-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(10,21,81,.55);
+      display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .connect-card { background: #fff; border-radius: 12px; max-width: 440px; width: 100%;
+      box-shadow: 0 6px 24px rgba(10,21,81,.25); overflow: hidden; }
+    .connect-card-header { background: var(--navy); color: #fff; padding: 14px 18px; font-weight: 700;
+      font-size: 15px; display: flex; align-items: center; justify-content: space-between; }
+    .modal-x { background: none; border: none; color: #fff; font-size: 17px; cursor: pointer; line-height: 1; }
+    .connect-card-body { padding: 18px; }
+    .connect-status { font-size: 13px; padding: 8px 12px; border-radius: 8px; background: var(--cream-dark);
+      color: var(--navy); margin-bottom: 12px; font-weight: 600; word-break: break-all; }
+    .connect-help { font-size: 13px; color: var(--text-muted); line-height: 1.55; margin-bottom: 16px; }
+    .connect-btn { display: block; text-align: center; background: var(--gold); color: #fff; font-weight: 700;
+      text-decoration: none; padding: 11px; border-radius: 8px; font-size: 14px; }
+    .connect-btn:hover { filter: brightness(1.08); }
+    .connect-note { font-size: 11px; color: var(--text-muted); margin-top: 10px; text-align: center; }
   </style>
 </head>
 <body>
@@ -484,9 +501,25 @@
   <div class="header-stats">
     <div class="stat-chip">Pending: <strong id="stat-pending">0</strong></div>
     <div class="stat-chip">Done today: <strong id="stat-done">0</strong></div>
+    <button class="header-refresh" onclick="openConnectModal()" title="Connect / switch Google account">⚙️ Account</button>
     <button class="header-refresh" onclick="refreshStats()">↺ Refresh</button>
   </div>
 </header>
+
+<div class="modal-overlay" id="connect-modal" style="display:none" onclick="if(event.target===this)closeConnectModal()">
+  <div class="connect-card">
+    <div class="connect-card-header">
+      <span>⚙️ Google Account</span>
+      <button class="modal-x" onclick="closeConnectModal()">✕</button>
+    </div>
+    <div class="connect-card-body">
+      <p class="connect-status" id="connect-status">Checking connection…</p>
+      <p class="connect-help">Connect the Google account for <strong>ciao@barsalotto.com</strong> — the same account that manages the Bar Salotto Business Profile. This powers both inbox drafts and Google review replies.</p>
+      <a class="connect-btn" href="/api/oauth/start">🔗 Connect / Switch Account</a>
+      <p class="connect-note">You'll be sent to Google to sign in and approve access, then returned here.</p>
+    </div>
+  </div>
+</div>
 
 <div class="filter-bar" id="filter-bar">
   <button class="filter-tab active" data-filter="all">All <span class="badge" id="badge-all">0</span></button>
@@ -916,6 +949,49 @@ async function loadInbox() {
     document.getElementById('error-state').style.display = 'block';
   }
 }
+
+// ── Connect-account modal ─────────────────────────────────────────────────────
+
+function openConnectModal() {
+  document.getElementById('connect-modal').style.display = 'flex';
+  refreshConnectStatus();
+}
+function closeConnectModal() {
+  document.getElementById('connect-modal').style.display = 'none';
+}
+
+async function refreshConnectStatus() {
+  const el = document.getElementById('connect-status');
+  try {
+    const res = await fetch('/api/gmail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'whoami' }),
+    });
+    if (res.status === 503) { el.textContent = '⚠️ No account connected yet.'; return; }
+    const { email } = await res.json();
+    el.textContent = email ? `✅ Connected as: ${email}` : 'Connected (account email unknown).';
+  } catch {
+    el.textContent = 'Could not check connection status.';
+  }
+}
+
+// Handle the OAuth redirect back from Google
+(function handleConnectRedirect() {
+  const p = new URLSearchParams(location.search);
+  const status = p.get('connected');
+  if (!status) return;
+  if (status === 'ok') {
+    const email = p.get('email');
+    toast(email ? `✅ Connected as ${email}` : '✅ Account connected', 'success');
+  } else {
+    toast(`Connection failed: ${p.get('reason') || 'unknown error'}`, 'warning');
+  }
+  // Clean the URL so a refresh doesn't re-toast
+  history.replaceState({}, '', location.pathname);
+})();
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeConnectModal(); });
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
