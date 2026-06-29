@@ -201,19 +201,38 @@ function buildSuggestion(review, corpus) {
   return { text, score, care };
 }
 
+// Words that can follow a greeting comma but are NOT a person's name.
+const NOT_A_NAME = new Set(['We','Your','Our','Thank','Thanks','Grazie','It','The','You','Please',
+  'So','What','Hope','And','But','As','This','That','I','Ciao','Hello','Hi']);
+
 function adaptReply(reply, pastFirst, currFirst) {
   let t = String(reply || '');
+
+  // 1) If we know the past reviewer's display name, swap every occurrence.
   if (pastFirst) {
     const esc = pastFirst.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    if (currFirst) {
-      t = t.replace(new RegExp(`\\b${esc}\\b`, 'g'), currFirst);
-    } else {
-      // drop the name gracefully when the new reviewer is anonymous
-      t = t.replace(new RegExp(`,?\\s*\\b${esc}\\b`, 'g'), '')
-           .replace(/\s{2,}/g, ' ').replace(/\s+([!.,?])/g, '$1');
-    }
+    if (currFirst) t = t.replace(new RegExp(`\\b${esc}\\b`, 'g'), currFirst);
+    else t = t.replace(new RegExp(`,?\\s*\\b${esc}\\b`, 'g'), '');
   }
-  return t.trim();
+
+  // 2) Catch a name baked into the greeting that did NOT match the display name
+  //    (e.g. the past reviewer showed as "A Google user" but Phil typed a name):
+  //    "...incredible review, Chrystal!"  /  "Thank you, Di, your..."
+  t = swapGreetingName(t, currFirst);
+
+  return t.replace(/\s{2,}/g, ' ').replace(/\s+([!.,?])/g, '$1').trim();
+}
+
+function swapGreetingName(text, currFirst) {
+  const re = /([,]\s*)([A-Z][a-z]+)([!.,])/;
+  const m = text.match(re);
+  if (!m) return text;
+  const name = m[2];
+  if (NOT_A_NAME.has(name)) return text;        // don't touch ordinary words
+  if (currFirst && name === currFirst) return text;
+  if (currFirst) return text.replace(re, `$1${currFirst}$3`);
+  // anonymous reviewer → drop ", Name" but keep the punctuation
+  return text.replace(re, (full, pre, nm, punc) => pre.replace(/[,]\s*$/, '') + punc);
 }
 
 function carefulNegative(name) {
