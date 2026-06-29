@@ -209,11 +209,18 @@ function fmtDate(rfc) {
   catch { return ''; }
 }
 
+const SIGNATURE =
+  '\n\nPhil\n' +
+  'Manager, Bar Salotto\n' +
+  '(224) 587-8159 · ciao@barsalotto.com\n' +
+  '1421 N. Rand Road, Arlington Heights, IL 60004\n' +
+  'barsalotto.com';
+
 function generateDraft(category, senderName) {
   const first = (senderName || '').split(' ')[0];
   const hi   = first ? `Hi ${first} —\n\n` : 'Hello,\n\n';
   const ciao = first ? `Ciao ${first},\n\n` : 'Ciao,\n\n';
-  const sig  = '\n\nPhil\nManager, Bar Salotto';
+  const sig  = SIGNATURE;
 
   switch (category) {
     case 'job':

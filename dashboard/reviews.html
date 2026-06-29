@@ -80,6 +80,13 @@
     .draft-section { border-top: 1px solid var(--border); background: #fdfdfc; padding: 12px 16px; }
     .draft-label { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
       color: var(--navy); margin-bottom: 6px; display: block; }
+    .match { display: inline-block; text-transform: none; letter-spacing: 0; font-size: 10.5px;
+      font-weight: 700; padding: 1px 8px; border-radius: 20px; margin-left: 6px; vertical-align: middle; }
+    .match-high { background: #e3f6ec; color: #1e7d52; }
+    .match-mid  { background: var(--gold-pale); color: var(--gold); }
+    .match-low  { background: #fdecea; color: #c0392b; }
+    .care-flag { background: #fdecea; border: 1px solid #f3b9b2; color: #a5281b; border-radius: 8px;
+      padding: 8px 11px; font-size: 12.5px; margin-bottom: 8px; line-height: 1.45; }
     .draft-edit { width: 100%; font-size: 13px; line-height: 1.6; color: #333; background: #fff;
       border: 2px solid var(--gold); border-radius: 6px; padding: 10px 12px; resize: vertical;
       min-height: 80px; font-family: inherit; }
@@ -307,7 +314,7 @@ async function load() {
     if (!res.ok) { renderError(await res.text()); return; }
     gbpConnected = true;
     data = await res.json();
-    data.unanswered.forEach(r => { if (!drafts[r.reviewName]) drafts[r.reviewName] = suggestDraft(r); });
+    data.unanswered.forEach(r => { if (!drafts[r.reviewName]) drafts[r.reviewName] = r.suggested || suggestDraft(r); });
     // Also merge any manual reviews not yet on Google
     loadManualReviews();
     render();
@@ -496,6 +503,14 @@ function renderError(detail) {
 
 // ── Card templates ───────────────────────────────────────────────────────────
 
+function matchBadge(r) {
+  if (r.matchScore == null) return '';
+  const score = r.matchScore;
+  const cls = score >= 8 ? 'match-high' : score >= 5 ? 'match-mid' : 'match-low';
+  const tip = 'How closely this suggestion matches your past replies to similar reviews';
+  return ` <span class="match ${cls}" title="${tip}">Match ${score}/10</span>`;
+}
+
 function cardUnanswered(r) {
   const postLabel = r.isManual ? '📋 Mark as Answered' : '✅ Post Reply to Google';
   const manualBadge = r.isManual ? `<span class="manual-badge">manual</span>` : '';
@@ -511,7 +526,8 @@ function cardUnanswered(r) {
   </div>
   ${r.comment ? `<div class="review-body">${esc(r.comment)}</div>` : '<div class="review-body" style="color:#999">(rating only, no text)</div>'}
   <div class="draft-section">
-    <span class="draft-label">📝 Suggested reply — edit before posting (no sign-off)</span>
+    <span class="draft-label">Suggested reply — edit before posting (no sign-off)${matchBadge(r)}</span>
+    ${r.care ? '<div class="care-flag">⚠ Negative sentiment — please review with extra care before posting.</div>' : ''}
     <textarea class="draft-edit" id="draft-${cssId(r.reviewName)}"
       oninput="drafts['${jsStr(r.reviewName)}']=this.value">${esc(drafts[r.reviewName] || '')}</textarea>
   </div>
