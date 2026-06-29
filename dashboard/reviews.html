@@ -158,7 +158,7 @@
   <span class="rating" id="rating-summary">—</span>
   <button class="refresh-btn" id="refresh-btn" onclick="refreshNow()" title="Check for new reviews now">
     <span class="ref-icon">↻</span> Refresh</button>
-  <a class="refresh-btn" href="/api/oauth/start" title="Connect / switch the Google account that manages this business profile">⚙️ Connect Account</a>
+  <a class="refresh-btn" href="/api/oauth/start?service=gbp" title="Connect / switch the Google account that manages this business profile">⚙️ Connect Business Profile</a>
   <span class="last-checked" id="last-checked"></span>
   <div class="tabs">
     <button class="tab active" data-tab="unanswered">Needs Reply <span class="badge" id="badge-unanswered">0</span></button>
@@ -655,6 +655,18 @@ setInterval(() => {
     load().then(updateLastChecked);
   }
 }, 600000);
+
+// Handle OAuth redirect back from connecting the Business Profile
+(function handleConnectRedirect() {
+  const p = new URLSearchParams(location.search);
+  if (!p.get('connected')) return;
+  if (p.get('connected') === 'ok') {
+    toast(p.get('email') ? `✅ Business Profile connected as ${p.get('email')}` : '✅ Business Profile connected', 'success');
+  } else {
+    toast(`Connection failed: ${p.get('reason') || 'unknown error'}`, 'warning');
+  }
+  history.replaceState({}, '', location.pathname);
+})();
 
 // Initial load
 load().then(updateLastChecked);

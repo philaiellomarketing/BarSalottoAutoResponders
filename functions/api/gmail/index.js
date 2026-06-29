@@ -39,9 +39,10 @@ export async function onRequestPost(context) {
 
   // Lightweight: report which account is connected (no token refresh needed)
   if (action === 'whoami') {
-    let email = '';
-    try { email = (await env.BS_KV.get('bs:connected:email')) || ''; } catch {}
-    return json({ email }, 200, corsHeaders);
+    let email = '', gbpEmail = '';
+    try { email = (await env.BS_KV.get('bs:connected:email:gmail')) || (await env.BS_KV.get('bs:connected:email')) || ''; } catch {}
+    try { gbpEmail = (await env.BS_KV.get('bs:connected:email:gbp')) || ''; } catch {}
+    return json({ email, gbpEmail }, 200, corsHeaders);
   }
 
   let accessToken;
@@ -56,6 +57,7 @@ export async function onRequestPost(context) {
   const threadId = bodyThreadId || await getThreadId(env, id);
 
   switch (action) {
+    case 'send':         return handleSend(accessToken, to, subject, draftBody, threadId, corsHeaders);
     case 'create_draft': return handleCreateDraft(accessToken, to, subject, draftBody, threadId, corsHeaders);
     case 'archive':      return handleArchive(accessToken, threadId, corsHeaders);
     case 'trash':        return handleTrash(accessToken, threadId, corsHeaders);
@@ -93,8 +95,7 @@ async function handleListInbox(accessToken, env, corsHeaders) {
 }
 
 async function fetchThreadItem(id, listSnippet, accessToken, env) {
-  const res = await gmailFetch(accessToken, 'GET',
-    `/users/me/threads/${id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`);
+  const res = await gmailFetch(accessToken, 'GET', `/users/me/threads/${id}?format=full`);
   if (!res.ok) return null;
   const thread = await res.json();
 
@@ -107,16 +108,21 @@ async function fetchThreadItem(id, listSnippet, accessToken, env) {
   const subject = hdrs.subject || '(no subject)';
   const from    = hdrs.from    || '';
   const date    = hdrs.date    || '';
-  const snippet = listSnippet  || thread.messages?.[thread.messages.length - 1]?.snippet || '';
+  const snippet = listSnippet  || firstMsg.snippet || '';
+  const fullBody = extractBody(firstMsg.payload) || snippet;
+  const starred  = (firstMsg.labelIds || []).includes('STARRED');
 
   const { name: senderName, email: senderEmail } = parseFrom(from);
-  const category = categorize(subject, from, snippet);
+  const category = categorize(subject, from, `${snippet} ${fullBody}`);
   const draft    = generateDraft(category, senderName);
 
   // Cache thread ID in KV so archive/trash/flag actions can resolve it
   if (env.BS_KV) {
     env.BS_KV.put(`bs:thread:${id}`, id, { expirationTtl: 86400 * 14 }).catch(() => {});
   }
+
+  let dateISO = '';
+  try { dateISO = new Date(date).toISOString(); } catch {}
 
   return {
     id,
@@ -125,13 +131,52 @@ async function fetchThreadItem(id, listSnippet, accessToken, env) {
     email:     senderEmail || null,
     subject,
     date:      fmtDate(date),
+    dateISO,
     snippet,
+    body:      fullBody,
     category,
     draft,
     priority:  priorityFor(category),
-    flagged:   false,
+    flagged:   starred,
     creator:   null,
   };
+}
+
+// Walk a Gmail payload tree and return the best plain-text body
+function extractBody(payload) {
+  if (!payload) return '';
+  const decode = (data) => {
+    try {
+      const b64 = data.replace(/-/g, '+').replace(/_/g, '/');
+      const bin = atob(b64);
+      const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+      return new TextDecoder('utf-8').decode(bytes);
+    } catch { return ''; }
+  };
+  const stripHtml = (html) => html
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<\/(p|div|tr|h[1-6])>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, '\n\n').trim();
+
+  // Prefer text/plain, then text/html, walking nested parts
+  const find = (node, mime) => {
+    if (node.mimeType === mime && node.body?.data) return decode(node.body.data);
+    for (const p of (node.parts || [])) {
+      const r = find(p, mime);
+      if (r) return r;
+    }
+    return '';
+  };
+  const plain = find(payload, 'text/plain');
+  if (plain) return plain.replace(/\n{3,}/g, '\n\n').trim();
+  const html = find(payload, 'text/html');
+  if (html) return stripHtml(html);
+  if (payload.body?.data) return decode(payload.body.data).trim();
+  return '';
 }
 
 // ── Categorisation & draft generation ────────────────────────────────────────
@@ -196,6 +241,39 @@ function generateDraft(category, senderName) {
 }
 
 // ── Action handlers ───────────────────────────────────────────────────────────
+
+async function handleSend(accessToken, to, subject, body, threadId, corsHeaders) {
+  if (!to)   return json({ error: 'missing_recipient' }, 400, corsHeaders);
+  if (!body) return json({ error: 'empty_body' }, 400, corsHeaders);
+
+  // For proper threading, look up the original message's Message-ID
+  let inReplyTo = '', references = '';
+  if (threadId) {
+    try {
+      const tRes = await gmailFetch(accessToken, 'GET',
+        `/users/me/threads/${threadId}?format=metadata&metadataHeaders=Message-ID&metadataHeaders=References`);
+      if (tRes.ok) {
+        const t = await tRes.json();
+        const last = t.messages?.[t.messages.length - 1];
+        for (const h of (last?.payload?.headers || [])) {
+          if (h.name.toLowerCase() === 'message-id') inReplyTo = h.value;
+          if (h.name.toLowerCase() === 'references') references = h.value;
+        }
+      }
+    } catch {}
+  }
+
+  const raw = buildMimeMessage(to, subject, body, { inReplyTo, references });
+  const payload = { raw };
+  if (threadId) payload.threadId = threadId;
+
+  const res = await gmailFetch(accessToken, 'POST', '/users/me/messages/send', payload);
+  if (!res.ok) {
+    return json({ error: 'send_failed', detail: await res.json().catch(() => ({})) }, res.status, corsHeaders);
+  }
+  const data = await res.json();
+  return json({ ok: true, messageId: data.id }, 200, corsHeaders);
+}
 
 async function handleCreateDraft(accessToken, to, subject, body, threadId, corsHeaders) {
   const raw = buildMimeMessage(to, subject, body);
@@ -269,12 +347,16 @@ async function gmailFetch(accessToken, method, path, body) {
   return fetch(`${GMAIL_API}${path}`, opts);
 }
 
-function buildMimeMessage(to, subject, bodyText) {
+function buildMimeMessage(to, subject, bodyText, threading = {}) {
   const from = 'ciao@barsalotto.com';
+  const { inReplyTo, references } = threading;
+  const refs = [references, inReplyTo].filter(Boolean).join(' ');
   const mime = [
     `From: Phil <${from}>`,
     to ? `To: ${to}` : '',
     `Subject: ${subject}`,
+    inReplyTo ? `In-Reply-To: ${inReplyTo}` : '',
+    refs ? `References: ${refs}` : '',
     'MIME-Version: 1.0',
     'Content-Type: text/plain; charset=UTF-8',
     '',

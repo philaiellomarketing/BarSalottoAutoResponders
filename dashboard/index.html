@@ -4,997 +4,474 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0a1551">
-  <title>Bar Salotto — Inbox Manager</title>
-  <link rel="manifest" href="manifest.json">
+  <title>Bar Salotto — Inbox</title>
+  <link rel="manifest" href="/dashboard/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --gold: #c3922e;
-      --gold-light: #e6b84a;
-      --gold-pale: #f5e9d0;
-      --navy: #0a1551;
-      --navy-mid: #1a2d7a;
-      --cream: #f8f6f1;
-      --cream-dark: #ede9df;
-      --text: #1a1a1a;
-      --text-muted: #666;
-      --border: #ddd7cc;
-      --red: #d63031;
-      --amber: #e17055;
-      --green: #00b894;
-      --shadow: 0 2px 8px rgba(10,21,81,.10);
-      --shadow-lg: 0 6px 24px rgba(10,21,81,.15);
-      --radius: 10px;
+      --navy: #0a1551; --navy-mid: #1a2d7a;
+      --gold: #c3922e; --gold-light: #e6b84a; --gold-pale: #f5e9d0;
+      --cream: #f8f6f1; --cream-dark: #ede9df;
+      --text: #20232e; --text-muted: #6b6f7a; --border: #e3ded2;
+      --red: #c0392b; --green: #1e8e63; --amber: #d2842a;
+      --shadow: 0 1px 3px rgba(10,21,81,.08); --shadow-lg: 0 8px 30px rgba(10,21,81,.16);
+      --radius: 12px;
+      --serif: 'Playfair Display', Georgia, serif;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--cream);
-      color: var(--text);
-      min-height: 100vh;
-    }
+    body { font-family: var(--sans); background: var(--cream); color: var(--text);
+      min-height: 100vh; -webkit-font-smoothing: antialiased; }
 
     /* ── Header ── */
-    header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: var(--navy);
-      color: #fff;
-      padding: 0 24px;
-      height: 60px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      box-shadow: 0 2px 12px rgba(0,0,0,.3);
-    }
-    .header-logo {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: .03em;
-      color: var(--gold-light);
-      white-space: nowrap;
-    }
-    .header-logo span { color: #fff; font-weight: 300; }
-    .header-nav { display: flex; gap: 6px; margin-left: 8px; }
-    .header-nav a { color: #fff; text-decoration: none; font-size: 13px; padding: 6px 14px;
-      border-radius: 6px; border: 1px solid rgba(255,255,255,.25); transition: background .15s, border-color .15s;
+    header { position: sticky; top: 0; z-index: 100; background: var(--navy); color: #fff;
+      padding: 0 22px; height: 62px; display: flex; align-items: center; gap: 18px;
+      box-shadow: 0 2px 14px rgba(0,0,0,.28); }
+    .logo { font-family: var(--serif); font-size: 22px; font-weight: 700; color: var(--gold-light);
+      letter-spacing: .01em; white-space: nowrap; }
+    .nav { display: flex; gap: 6px; }
+    .nav a { color: rgba(255,255,255,.85); text-decoration: none; font-size: 13px; font-weight: 500;
+      padding: 7px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,.18); transition: .15s; }
+    .nav a:hover { background: rgba(255,255,255,.08); color: #fff; }
+    .nav a.active { background: var(--gold); border-color: var(--gold); color: #fff; font-weight: 600; }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .stat-chip { background: rgba(255,255,255,.1); border-radius: 20px; padding: 4px 13px; font-size: 12.5px;
       white-space: nowrap; }
-    .header-nav a:hover { background: rgba(255,255,255,.1); }
-    .header-nav a.active { background: var(--gold); border-color: var(--gold); font-weight: 600; }
-    .header-stats {
-      display: flex;
-      gap: 12px;
-      margin-left: auto;
-      align-items: center;
-    }
-    .stat-chip {
-      background: rgba(255,255,255,.12);
-      border-radius: 20px;
-      padding: 3px 12px;
-      font-size: 13px;
-      white-space: nowrap;
-    }
     .stat-chip strong { color: var(--gold-light); }
-    .header-refresh {
-      background: none;
-      border: 1px solid rgba(255,255,255,.3);
-      color: #fff;
-      border-radius: 6px;
-      padding: 5px 12px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: background .15s;
-    }
-    .header-refresh:hover { background: rgba(255,255,255,.1); }
+    .icon-btn { background: none; border: 1px solid rgba(255,255,255,.25); color: #fff; border-radius: 8px;
+      padding: 6px 12px; font-size: 12.5px; cursor: pointer; font-family: var(--sans); transition: .15s; }
+    .icon-btn:hover { background: rgba(255,255,255,.1); }
 
-    /* ── Filter bar ── */
-    .filter-bar {
-      position: sticky;
-      top: 60px;
-      z-index: 90;
-      background: var(--cream-dark);
-      border-bottom: 1px solid var(--border);
-      padding: 0 24px;
-      display: flex;
-      gap: 4px;
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-    .filter-bar::-webkit-scrollbar { display: none; }
-    .filter-tab {
-      background: none;
-      border: none;
-      border-bottom: 3px solid transparent;
-      padding: 12px 14px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-muted);
-      cursor: pointer;
-      white-space: nowrap;
-      transition: color .15s, border-color .15s;
-    }
-    .filter-tab:hover { color: var(--navy); }
-    .filter-tab.active {
-      color: var(--navy);
-      border-bottom-color: var(--gold);
-    }
-    .filter-tab .badge {
-      display: inline-block;
-      background: var(--gold-pale);
-      color: var(--gold);
-      border-radius: 10px;
-      padding: 1px 7px;
-      font-size: 11px;
-      font-weight: 700;
-      margin-left: 5px;
-    }
+    /* ── Folder tabs ── */
+    .folders { position: sticky; top: 62px; z-index: 90; background: var(--cream-dark);
+      border-bottom: 1px solid var(--border); padding: 0 18px; display: flex; gap: 2px;
+      overflow-x: auto; scrollbar-width: none; }
+    .folders::-webkit-scrollbar { display: none; }
+    .folder { background: none; border: none; border-bottom: 2.5px solid transparent; padding: 13px 14px;
+      font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; white-space: nowrap;
+      font-family: var(--sans); transition: .15s; }
+    .folder:hover { color: var(--navy); }
+    .folder.active { color: var(--navy); border-bottom-color: var(--gold); font-weight: 600; }
+    .folder .count { display: inline-block; background: var(--gold-pale); color: var(--gold); border-radius: 10px;
+      padding: 1px 7px; font-size: 11px; font-weight: 700; margin-left: 5px; }
 
-    /* ── Main content ── */
-    main {
-      max-width: 880px;
-      margin: 0 auto;
-      padding: 24px 20px 60px;
-    }
+    main { max-width: 860px; margin: 0 auto; padding: 18px 16px 70px; }
 
-    /* ── Card ── */
-    .card {
-      background: #fff;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      margin-bottom: 16px;
-      overflow: hidden;
-      transition: box-shadow .15s;
-    }
-    .card:hover { box-shadow: var(--shadow-lg); }
-    .card.done {
-      opacity: .55;
-      pointer-events: none;
-    }
+    /* ── Email list ── */
+    .mail { background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+      margin-bottom: 10px; box-shadow: var(--shadow); overflow: hidden; transition: box-shadow .15s; }
+    .mail.open { box-shadow: var(--shadow-lg); }
+    .mail-row { display: flex; align-items: center; gap: 13px; padding: 14px 16px; cursor: pointer; }
+    .mail-row:hover { background: #fcfbf8; }
+    .avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: flex;
+      align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: #fff;
+      font-family: var(--serif); }
+    .mail-main { flex: 1; min-width: 0; }
+    .mail-line1 { display: flex; align-items: baseline; gap: 8px; }
+    .mail-sender { font-weight: 600; font-size: 14.5px; color: var(--text); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; }
+    .mail-time { margin-left: auto; font-size: 12px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+    .mail-subject { font-size: 13.5px; color: var(--text); margin-top: 1px; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+    .mail-snippet { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; }
+    .chip { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 20px; flex-shrink: 0; }
+    .chip-dining   { background: #e7edff; color: #2b3f87; }
+    .chip-catering { background: #fff1d9; color: #9a6a12; }
+    .chip-creator  { background: #f0e6ff; color: #6b3fa0; }
+    .chip-review   { background: #fff3cd; color: #856404; }
+    .chip-donation { background: #e3f6ec; color: #1e7d52; }
+    .chip-vendor   { background: #eceef2; color: #5a6172; }
+    .chip-job      { background: #e6f3f7; color: #1c6b85; }
+    .star { background: none; border: none; cursor: pointer; font-size: 16px; flex-shrink: 0;
+      filter: grayscale(1) opacity(.4); transition: .15s; }
+    .star.on { filter: none; }
 
-    .card-header {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 16px 16px 12px;
-      position: relative;
-    }
-    .priority-bar {
-      position: absolute;
-      left: 0; top: 0; bottom: 0;
-      width: 4px;
-      border-radius: var(--radius) 0 0 0;
-    }
-    .priority-bar.urgent { background: var(--red); }
-    .priority-bar.medium { background: var(--amber); }
-    .priority-bar.low    { background: #b2bec3; }
+    /* ── Expanded body ── */
+    .mail-detail { display: none; border-top: 1px solid var(--border); }
+    .mail.open .mail-detail { display: block; }
+    .email-from { padding: 14px 18px 6px; font-size: 12.5px; color: var(--text-muted); }
+    .email-from strong { color: var(--text); }
+    .email-body { padding: 6px 18px 16px; font-size: 14px; line-height: 1.62; color: #2a2d38;
+      white-space: pre-wrap; word-break: break-word; max-height: 360px; overflow-y: auto; }
 
-    .card-meta {
-      flex: 1;
-      min-width: 0;
-      padding-left: 4px;
-    }
-    .card-top-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 4px;
-      flex-wrap: wrap;
-    }
-    .category-badge {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      border-radius: 4px;
-      padding: 2px 7px;
-    }
-    .badge-dining    { background: #dfe6fd; color: #2d3e9e; }
-    .badge-catering  { background: #fde8d8; color: #9b4a1e; }
-    .badge-creator   { background: #e0f5ea; color: #1a7a45; }
-    .badge-review    { background: #fff3cd; color: #856404; }
-    .badge-donation  { background: #fde8f5; color: #8b2264; }
-    .badge-vendor    { background: #f0f0f0; color: #555; }
-    .badge-job       { background: #e8f4fd; color: #1a6b9a; }
+    /* ── Reply composer ── */
+    .composer { background: var(--cream); border-top: 1px solid var(--border); padding: 14px 18px 16px; }
+    .composer-label { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+      color: var(--navy); margin-bottom: 7px; display: flex; align-items: center; gap: 8px; }
+    .composer-label .edited { background: var(--gold-pale); color: var(--gold); border-radius: 4px;
+      padding: 1px 6px; font-size: 9.5px; }
+    .reply-box { width: 100%; min-height: 150px; border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; font-family: var(--sans); font-size: 14px; line-height: 1.6; color: var(--text);
+      background: #fff; resize: vertical; transition: border-color .15s, box-shadow .15s; }
+    .reply-box:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(195,146,46,.15); }
+    .composer-actions { display: flex; align-items: center; gap: 8px; margin-top: 11px; flex-wrap: wrap; }
+    .btn { border: none; border-radius: 9px; padding: 9px 16px; font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: var(--sans); display: inline-flex; align-items: center; gap: 6px;
+      transition: filter .12s, background .12s; }
+    .btn-send { background: var(--navy); color: #fff; }
+    .btn-send:hover { filter: brightness(1.18); }
+    .btn-send:disabled { opacity: .6; cursor: default; }
+    .btn-ghost { background: none; border: 1px solid var(--border); color: var(--text-muted); }
+    .btn-ghost:hover { background: var(--cream-dark); }
+    .action-icons { margin-left: auto; display: flex; gap: 6px; }
+    .icon-action { background: #fff; border: 1px solid var(--border); border-radius: 8px; width: 34px; height: 34px;
+      display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 15px; transition: .15s; }
+    .icon-action:hover { background: var(--cream-dark); }
 
-    .card-sender {
-      font-size: 14px;
-      font-weight: 600;
-    }
-    .card-date {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-left: auto;
-    }
-    .card-subject {
-      font-size: 13px;
-      color: var(--text-muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      margin-bottom: 2px;
-    }
-    .card-snippet {
-      padding: 8px 16px 10px 28px;
-      font-size: 13px;
-      color: var(--text-muted);
-      line-height: 1.5;
-      border-top: 1px solid var(--border);
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
+    /* ── States ── */
+    .state { text-align: center; padding: 64px 24px; color: var(--text-muted); }
+    .state .ic { font-size: 40px; margin-bottom: 12px; }
+    .state h3 { font-family: var(--serif); font-size: 20px; color: var(--navy); margin-bottom: 6px; }
+    .state p { font-size: 14px; max-width: 460px; margin: 0 auto; line-height: 1.5; }
+    .state .btn { margin-top: 16px; background: var(--navy); color: #fff; }
 
-    /* ── Draft ── */
-    .draft-section {
-      border-top: 1px solid var(--border);
-      background: #fdfdfc;
-    }
-    .draft-toggle {
-      width: 100%;
-      background: none;
-      border: none;
-      padding: 10px 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--navy);
-      cursor: pointer;
-      text-align: left;
-      transition: background .12s;
-    }
-    .draft-toggle:hover { background: var(--gold-pale); }
-    .draft-toggle .chevron {
-      margin-left: auto;
-      font-size: 10px;
-      transition: transform .2s;
-    }
-    .draft-toggle.open .chevron { transform: rotate(180deg); }
-    .draft-label-tag {
-      font-size: 10px;
-      background: var(--gold-pale);
-      color: var(--gold);
-      border-radius: 4px;
-      padding: 1px 6px;
-      font-weight: 700;
-      letter-spacing: .04em;
-    }
+    /* ── Connect modal ── */
+    .overlay { position: fixed; inset: 0; z-index: 500; background: rgba(10,21,81,.55); display: flex;
+      align-items: center; justify-content: center; padding: 20px; }
+    .modal { background: #fff; border-radius: 14px; max-width: 460px; width: 100%; box-shadow: var(--shadow-lg);
+      overflow: hidden; }
+    .modal-head { background: var(--navy); color: #fff; padding: 15px 18px; font-family: var(--serif);
+      font-size: 17px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+    .modal-x { background: none; border: none; color: #fff; font-size: 18px; cursor: pointer; }
+    .modal-body { padding: 18px; }
+    .conn-svc { border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px; margin-bottom: 12px; }
+    .conn-svc h4 { font-size: 13.5px; color: var(--navy); margin-bottom: 4px; }
+    .conn-status { font-size: 12.5px; color: var(--text-muted); margin-bottom: 10px; word-break: break-all; }
+    .conn-btn { display: inline-block; background: var(--gold); color: #fff; font-weight: 600; text-decoration: none;
+      padding: 8px 14px; border-radius: 8px; font-size: 13px; }
+    .conn-btn:hover { filter: brightness(1.08); }
+    .conn-note { font-size: 11.5px; color: var(--text-muted); margin-top: 12px; line-height: 1.5; }
 
-    .draft-body {
-      padding: 0 16px 12px;
-      display: none;
-    }
-    .draft-body.open { display: block; }
-    .draft-text {
-      font-size: 13px;
-      line-height: 1.65;
-      color: #333;
-      white-space: pre-wrap;
-      background: var(--cream);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px 14px;
-    }
-    .draft-edit-area {
-      width: 100%;
-      font-size: 13px;
-      line-height: 1.65;
-      color: #333;
-      background: #fff;
-      border: 2px solid var(--gold);
-      border-radius: 6px;
-      padding: 12px 14px;
-      resize: vertical;
-      min-height: 160px;
-      font-family: inherit;
-      display: none;
-    }
-    .draft-edit-area.open { display: block; }
-
-    /* ── Action bar ── */
-    .action-bar {
-      padding: 10px 16px 14px;
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .btn {
-      border: none;
-      border-radius: 6px;
-      padding: 7px 14px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      transition: filter .12s, transform .08s;
-    }
-    .btn:active { transform: scale(.97); }
-    .btn-approve {
-      background: var(--navy);
-      color: #fff;
-    }
-    .btn-approve:hover { filter: brightness(1.2); }
-    .btn-edit {
-      background: var(--gold-pale);
-      color: var(--navy);
-      border: 1px solid var(--gold);
-    }
-    .btn-edit:hover { background: var(--gold); color: #fff; }
-    .btn-save-edit {
-      background: var(--green);
-      color: #fff;
-      display: none;
-    }
-    .btn-cancel-edit {
-      background: #eee;
-      color: #555;
-      display: none;
-    }
-    .btn-skip {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-    }
-    .btn-skip:hover { border-color: #aaa; color: #333; }
-    .gmail-actions {
-      margin-left: auto;
-      display: flex;
-      gap: 6px;
-    }
-    .btn-gmail {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      padding: 6px 10px;
-      font-size: 13px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background .12s, color .12s;
-    }
-    .btn-gmail:hover { background: var(--cream-dark); color: var(--text); }
-    .btn-gmail.archive:hover { background: #e8f4fd; color: #1a6b9a; }
-    .btn-gmail.trash:hover   { background: #fde8d8; color: var(--red); }
-    .btn-gmail.flag:hover    { background: #fff3cd; color: #856404; }
-    .btn-gmail.flagged       { color: #e6b84a; border-color: #e6b84a; background: #fff9ec; }
-
-    /* ── Creator profile card ── */
-    .creator-profile {
-      background: var(--gold-pale);
-      border: 1px solid rgba(195,146,46,.3);
-      border-radius: 8px;
-      padding: 12px 14px;
-      margin-bottom: 10px;
-      font-size: 12px;
-    }
-    .creator-profile h4 {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: .07em;
-      color: var(--gold);
-      margin-bottom: 8px;
-      font-weight: 700;
-    }
-    .creator-stats {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin-bottom: 8px;
-    }
-    .creator-stat {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .creator-stat .label { color: var(--text-muted); font-size: 11px; }
-    .creator-stat .value { font-weight: 700; font-size: 13px; color: var(--navy); }
-    .creator-rec {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      border-radius: 4px;
-      padding: 3px 8px;
-      font-size: 11px;
-      font-weight: 700;
-    }
-    .rec-approve { background: #e0f5ea; color: #1a7a45; }
-    .rec-caution { background: #fff3cd; color: #856404; }
-    .rec-decline { background: #fde8d8; color: var(--red); }
-
-    /* ── Toast notification ── */
-    #toast-container {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      z-index: 999;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .toast {
-      background: var(--navy);
-      color: #fff;
-      border-radius: 8px;
-      padding: 10px 18px;
-      font-size: 13px;
-      box-shadow: var(--shadow-lg);
-      animation: toast-in .2s ease;
-      max-width: 320px;
-    }
+    /* ── Toasts ── */
+    #toasts { position: fixed; bottom: 22px; right: 22px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { background: var(--navy); color: #fff; border-radius: 10px; padding: 11px 18px; font-size: 13px;
+      box-shadow: var(--shadow-lg); max-width: 340px; }
     .toast.success { border-left: 4px solid var(--green); }
-    .toast.info    { border-left: 4px solid var(--gold); }
     .toast.warning { border-left: 4px solid var(--amber); }
-    @keyframes toast-in {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+    .toast.info    { border-left: 4px solid var(--gold); }
+    .spinner { display: inline-block; width: 17px; height: 17px; border: 2px solid var(--border);
+      border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Empty state ── */
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      color: var(--text-muted);
+    @media (max-width: 560px) {
+      .header-right .stat-chip { display: none; }
+      .mail-snippet { display: none; }
     }
-    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
-    .empty-state h3 { font-size: 16px; color: var(--navy); margin-bottom: 6px; }
-
-    /* ── Gmail connect banner ── */
-    .connect-banner {
-      background: var(--gold-pale);
-      border: 1px solid rgba(195,146,46,.4);
-      border-radius: var(--radius);
-      padding: 14px 18px;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      font-size: 13px;
-    }
-    .connect-banner .icon { font-size: 22px; }
-    .connect-banner strong { display: block; color: var(--navy); margin-bottom: 2px; }
-    .connect-banner a {
-      color: var(--gold);
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .connect-banner a:hover { text-decoration: underline; }
-    .banner-dismiss {
-      margin-left: auto;
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--text-muted);
-      font-size: 18px;
-      line-height: 1;
-    }
-
-    /* Connect-account modal */
-    .modal-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(10,21,81,.55);
-      display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .connect-card { background: #fff; border-radius: 12px; max-width: 440px; width: 100%;
-      box-shadow: 0 6px 24px rgba(10,21,81,.25); overflow: hidden; }
-    .connect-card-header { background: var(--navy); color: #fff; padding: 14px 18px; font-weight: 700;
-      font-size: 15px; display: flex; align-items: center; justify-content: space-between; }
-    .modal-x { background: none; border: none; color: #fff; font-size: 17px; cursor: pointer; line-height: 1; }
-    .connect-card-body { padding: 18px; }
-    .connect-status { font-size: 13px; padding: 8px 12px; border-radius: 8px; background: var(--cream-dark);
-      color: var(--navy); margin-bottom: 12px; font-weight: 600; word-break: break-all; }
-    .connect-help { font-size: 13px; color: var(--text-muted); line-height: 1.55; margin-bottom: 16px; }
-    .connect-btn { display: block; text-align: center; background: var(--gold); color: #fff; font-weight: 700;
-      text-decoration: none; padding: 11px; border-radius: 8px; font-size: 14px; }
-    .connect-btn:hover { filter: brightness(1.08); }
-    .connect-note { font-size: 11px; color: var(--text-muted); margin-top: 10px; text-align: center; }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="header-logo">Bar Salotto</div>
-  <nav class="header-nav">
-    <a href="/dashboard/" class="active">📥 Inbox</a>
-    <a href="/dashboard/reviews.html">★ Reviews</a>
+  <div class="logo">Bar Salotto</div>
+  <nav class="nav">
+    <a href="/dashboard/" class="active">Inbox</a>
+    <a href="/dashboard/reviews.html">Reviews</a>
   </nav>
-  <div class="header-stats">
-    <div class="stat-chip">Pending: <strong id="stat-pending">0</strong></div>
-    <div class="stat-chip">Done today: <strong id="stat-done">0</strong></div>
-    <button class="header-refresh" onclick="openConnectModal()" title="Connect / switch Google account">⚙️ Account</button>
-    <button class="header-refresh" onclick="refreshStats()">↺ Refresh</button>
+  <div class="header-right">
+    <div class="stat-chip">Pending <strong id="stat-pending">0</strong></div>
+    <button class="icon-btn" onclick="openConnect()" title="Connect / switch Google accounts">⚙︎ Accounts</button>
+    <button class="icon-btn" onclick="loadInbox()" title="Refresh inbox">↻ Refresh</button>
   </div>
 </header>
 
-<div class="modal-overlay" id="connect-modal" style="display:none" onclick="if(event.target===this)closeConnectModal()">
-  <div class="connect-card">
-    <div class="connect-card-header">
-      <span>⚙️ Google Account</span>
-      <button class="modal-x" onclick="closeConnectModal()">✕</button>
-    </div>
-    <div class="connect-card-body">
-      <p class="connect-status" id="connect-status">Checking connection…</p>
-      <p class="connect-help">Connect the Google account for <strong>ciao@barsalotto.com</strong> — the same account that manages the Bar Salotto Business Profile. This powers both inbox drafts and Google review replies.</p>
-      <a class="connect-btn" href="/api/oauth/start">🔗 Connect / Switch Account</a>
-      <p class="connect-note">You'll be sent to Google to sign in and approve access, then returned here.</p>
-    </div>
-  </div>
-</div>
-
-<div class="filter-bar" id="filter-bar">
-  <button class="filter-tab active" data-filter="all">All <span class="badge" id="badge-all">0</span></button>
-  <button class="filter-tab" data-filter="dining">Group Dining <span class="badge" id="badge-dining">0</span></button>
-  <button class="filter-tab" data-filter="catering">Catering <span class="badge" id="badge-catering">0</span></button>
-  <button class="filter-tab" data-filter="creator">Creator <span class="badge" id="badge-creator">0</span></button>
-  <button class="filter-tab" data-filter="review">Review <span class="badge" id="badge-review">0</span></button>
-  <button class="filter-tab" data-filter="donation">Donation <span class="badge" id="badge-donation">0</span></button>
-  <button class="filter-tab" data-filter="vendor">Vendor <span class="badge" id="badge-vendor">0</span></button>
-  <button class="filter-tab" data-filter="job">Job App <span class="badge" id="badge-job">0</span></button>
+<div class="folders" id="folders">
+  <button class="folder active" data-folder="all">All <span class="count" id="c-all">0</span></button>
+  <button class="folder" data-folder="dining">Group Dining <span class="count" id="c-dining">0</span></button>
+  <button class="folder" data-folder="catering">Catering <span class="count" id="c-catering">0</span></button>
+  <button class="folder" data-folder="creator">Creator <span class="count" id="c-creator">0</span></button>
+  <button class="folder" data-folder="review">Review <span class="count" id="c-review">0</span></button>
+  <button class="folder" data-folder="donation">Donation <span class="count" id="c-donation">0</span></button>
+  <button class="folder" data-folder="vendor">Vendor <span class="count" id="c-vendor">0</span></button>
+  <button class="folder" data-folder="job">Job App <span class="count" id="c-job">0</span></button>
 </div>
 
 <main>
-  <div class="connect-banner" id="connect-banner">
-    <span class="icon">📬</span>
-    <div>
-      <strong>Gmail Actions Not Yet Connected</strong>
-      "Save to Drafts", Archive, Trash, and Flag will use fallback mode until the Gmail API is wired up.
-      <a href="#setup">See setup guide ↓</a>
-    </div>
-    <button class="banner-dismiss" onclick="dismissBanner()" title="Dismiss">×</button>
-  </div>
-
-  <div id="loading-state" style="text-align:center;padding:60px 24px;color:var(--text-muted)">
-    <div style="font-size:28px;margin-bottom:10px">📬</div>
-    <div style="font-size:14px">Loading inbox…</div>
-  </div>
-
-  <div id="cards-container"></div>
-
-  <div class="empty-state" id="empty-state" style="display:none">
-    <div class="icon">✅</div>
-    <h3>All clear</h3>
-    <p>No pending items in this category.</p>
-  </div>
-
-  <div class="empty-state" id="error-state" style="display:none">
-    <div class="icon">⚠️</div>
-    <h3>Couldn't load inbox</h3>
-    <p id="error-detail" style="font-size:13px;color:var(--text-muted)"></p>
-    <button class="btn btn-refresh" onclick="loadInbox()" style="margin-top:14px;background:var(--navy);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer">↺ Retry</button>
-  </div>
+  <div class="state" id="loading"><div class="ic"><span class="spinner"></span></div><h3>Loading inbox…</h3></div>
+  <div id="list"></div>
+  <div class="state" id="empty" style="display:none"><div class="ic">✅</div><h3>All clear</h3><p>No pending emails in this folder.</p></div>
+  <div class="state" id="error" style="display:none"><div class="ic">⚠️</div><h3>Couldn't load inbox</h3><p id="error-detail"></p><button class="btn" onclick="loadInbox()">↻ Retry</button></div>
 </main>
 
-<div id="toast-container"></div>
+<div class="overlay" id="connect-modal" style="display:none" onclick="if(event.target===this)closeConnect()">
+  <div class="modal">
+    <div class="modal-head"><span>Connect Google Accounts</span><button class="modal-x" onclick="closeConnect()">✕</button></div>
+    <div class="modal-body">
+      <div class="conn-svc">
+        <h4>📥 Gmail — ciao@barsalotto.com</h4>
+        <div class="conn-status" id="status-gmail">Checking…</div>
+        <a class="conn-btn" href="/api/oauth/start?service=gmail">Connect / Switch Gmail</a>
+      </div>
+      <div class="conn-svc">
+        <h4>★ Google Business Profile</h4>
+        <div class="conn-status" id="status-gbp">Checking…</div>
+        <a class="conn-btn" href="/api/oauth/start?service=gbp">Connect / Switch Business Profile</a>
+      </div>
+      <p class="conn-note">Each can use a different Google account. Connect Gmail with the account that receives <strong>ciao@barsalotto.com</strong>, and Business Profile with the account that manages your Google listing. You'll sign in at Google and return here.</p>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
 
 <script>
-// ── Data ──────────────────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────────────────────
+let ITEMS = [];
+let activeFolder = 'all';
+const STATE_KEY = 'bs-inbox-state-v2';
 
-let ITEMS = []; // populated by loadInbox()
+function loadState() { try { return JSON.parse(localStorage.getItem(STATE_KEY)) || {}; } catch { return {}; } }
+function saveState(s) { localStorage.setItem(STATE_KEY, JSON.stringify(s)); }
+let state = loadState();
+function itemState(id) { return state[id] || {}; }
+function setItemState(id, patch) { state[id] = { ...itemState(id), ...patch }; saveState(state); }
 
-// ── State ─────────────────────────────────────────────────────────────────────
+// ── Utilities ──────────────────────────────────────────────────────────────────
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+const AVATAR_COLORS = ['#0a1551','#c3922e','#1e7d52','#6b3fa0','#1c6b85','#9a6a12','#2b3f87'];
+function avatarColor(name){ let h=0; for(const c of String(name||'?')) h=(h*31+c.charCodeAt(0))%AVATAR_COLORS.length; return AVATAR_COLORS[h]; }
+function folderLabel(c){ return {dining:'Group Dining',catering:'Catering',creator:'Creator',review:'Review',donation:'Donation',vendor:'Vendor',job:'Job App'}[c]||c; }
 
-const STATE_KEY = 'bs-inbox-state';
-
-function loadState() {
-  try { return JSON.parse(localStorage.getItem(STATE_KEY)) || {}; } catch { return {}; }
+function fmtDateTime(iso, fallback) {
+  if (!iso) return fallback || '';
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    if (sameDay) return time;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + time;
+  } catch { return fallback || ''; }
 }
-function saveState(s) {
-  localStorage.setItem(STATE_KEY, JSON.stringify(s));
+function fmtFull(iso, fallback) {
+  if (!iso) return fallback || '';
+  try { return new Date(iso).toLocaleString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }); }
+  catch { return fallback || ''; }
 }
 
-let state = loadState(); // { [id]: { done, flagged, edited_draft } }
-
-function getItemState(id) {
-  return state[id] || {};
-}
-function updateItemState(id, patch) {
-  state[id] = { ...getItemState(id), ...patch };
-  saveState(state);
+function toast(msg, type='info') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type; el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
 }
 
-// ── Filter ────────────────────────────────────────────────────────────────────
+// ── Load inbox ──────────────────────────────────────────────────────────────────
+async function loadInbox() {
+  show('loading'); document.getElementById('list').innerHTML = '';
+  try {
+    const res = await fetch('/api/gmail', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list' }),
+    });
+    if (res.status === 503) { showError('Gmail not connected. Click ⚙︎ Accounts to connect.'); return; }
+    if (!res.ok) { const e = await res.json().catch(()=>({})); showError(e.error || `Error ${res.status}`); return; }
+    const { items } = await res.json();
+    ITEMS = (items || []).map(it => ({ ...it, flagged: itemState(it.id).flagged ?? it.flagged }));
+    render();
+  } catch (e) { showError(e.message); }
+}
 
-let activeFilter = 'all';
+function show(which) {
+  for (const id of ['loading','empty','error']) document.getElementById(id).style.display = id===which ? 'block':'none';
+}
+function showError(msg) { document.getElementById('error-detail').textContent = msg; show('error'); document.getElementById('list').innerHTML=''; }
 
-function filteredItems() {
-  return ITEMS.filter(item => {
-    const s = getItemState(item.id);
-    if (s.done) return false;
-    if (activeFilter === 'all') return true;
-    return item.category === activeFilter;
+// ── Render ──────────────────────────────────────────────────────────────────────
+function visibleItems() {
+  return ITEMS.filter(it => {
+    if (itemState(it.id).done) return false;
+    return activeFolder === 'all' || it.category === activeFolder;
   });
 }
-
-// ── Render ────────────────────────────────────────────────────────────────────
 
 function render() {
-  const container = document.getElementById('cards-container');
-  const items = filteredItems();
-  container.innerHTML = items.map(renderCard).join('');
-  document.getElementById('empty-state').style.display = items.length ? 'none' : 'block';
-  updateBadges();
-  updateHeaderStats();
-  bindCardEvents();
+  for (const id of ['loading','error']) document.getElementById(id).style.display='none';
+  const list = document.getElementById('list');
+  const items = visibleItems();
+  list.innerHTML = items.map(renderMail).join('');
+  document.getElementById('empty').style.display = items.length ? 'none' : 'block';
+  updateCounts();
 }
 
-function renderCard(item) {
-  const s = getItemState(item.id);
-  const draft = s.edited_draft || item.draft;
-  const flagClass = s.flagged ? ' flagged' : '';
-
-  const creatorHtml = item.creator ? renderCreatorProfile(item.creator) : '';
-
-  const recClass = {
-    approve: 'rec-approve',
-    caution: 'rec-caution',
-    decline: 'rec-decline',
-  }[item.creator?.recommendation] || 'rec-caution';
-
+function renderMail(it) {
+  const s = itemState(it.id);
+  const reply = s.edited_draft != null ? s.edited_draft : it.draft;
+  const opened = s.open ? ' open' : '';
+  const initial = esc((it.sender || '?').trim()[0] || '?').toUpperCase();
   return `
-<div class="card" id="card-${item.id}" data-id="${item.id}" data-category="${item.category}">
-  <div class="card-header">
-    <div class="priority-bar ${item.priority}"></div>
-    <div class="card-meta">
-      <div class="card-top-row">
-        <span class="category-badge badge-${item.category}">${categoryLabel(item.category)}</span>
-        <span class="card-sender">${esc(item.sender)}</span>
-        <span class="card-date">${esc(item.date)}</span>
+<div class="mail${opened}" id="mail-${it.id}">
+  <div class="mail-row" onclick="toggleOpen('${it.id}', event)">
+    <div class="avatar" style="background:${avatarColor(it.sender)}">${initial}</div>
+    <div class="mail-main">
+      <div class="mail-line1">
+        <span class="mail-sender">${esc(it.sender || it.email || 'Unknown')}</span>
+        <span class="mail-time">${esc(fmtDateTime(it.dateISO, it.date))}</span>
       </div>
-      <div class="card-subject">${esc(item.subject)}</div>
+      <div class="mail-subject">${esc(it.subject)}</div>
+      <div class="mail-snippet">${esc(it.snippet || '')}</div>
     </div>
+    <span class="chip chip-${it.category}">${esc(folderLabel(it.category))}</span>
+    <button class="star ${it.flagged?'on':''}" id="star-${it.id}" title="Flag / Star"
+      onclick="event.stopPropagation(); toggleFlag('${it.id}')">★</button>
   </div>
-  ${item.snippet ? `<div class="card-snippet">${esc(item.snippet)}</div>` : ''}
-
-  <div class="draft-section">
-    <button class="draft-toggle" onclick="toggleDraft('${item.id}')">
-      <span>📝</span>
-      <span>Draft Response</span>
-      ${s.edited_draft ? '<span class="draft-label-tag">EDITED</span>' : ''}
-      <span class="chevron">▼</span>
-    </button>
-    <div class="draft-body" id="draft-body-${item.id}">
-      ${creatorHtml}
-      <pre class="draft-text" id="draft-text-${item.id}">${esc(draft)}</pre>
-      <textarea class="draft-edit-area" id="draft-edit-${item.id}" spellcheck="true">${esc(draft)}</textarea>
-    </div>
-  </div>
-
-  <div class="action-bar">
-    <button class="btn btn-approve" onclick="approveDraft('${item.id}')">✅ Save to Drafts</button>
-    <button class="btn btn-edit" id="btn-edit-${item.id}" onclick="startEdit('${item.id}')">✏️ Edit</button>
-    <button class="btn btn-save-edit" id="btn-save-${item.id}" onclick="saveEdit('${item.id}')">💾 Save</button>
-    <button class="btn btn-cancel-edit" id="btn-cancel-${item.id}" onclick="cancelEdit('${item.id}')">Cancel</button>
-    <button class="btn btn-skip" onclick="skipItem('${item.id}')">Skip</button>
-    <div class="gmail-actions">
-      <button class="btn-gmail archive" title="Archive" onclick="gmailAction('${item.id}', 'archive')">📦</button>
-      <button class="btn-gmail trash" title="Move to Trash" onclick="gmailAction('${item.id}', 'trash')">🗑️</button>
-      <button class="btn-gmail flag${flagClass}" id="btn-flag-${item.id}" title="Flag / Star" onclick="gmailAction('${item.id}', 'flag')">🚩</button>
+  <div class="mail-detail">
+    <div class="email-from">From <strong>${esc(it.sender || '')}</strong> ${it.email?`&lt;${esc(it.email)}&gt;`:''} · ${esc(fmtFull(it.dateISO, it.date))}</div>
+    <div class="email-body">${esc(it.body || it.snippet || '(no content)')}</div>
+    <div class="composer">
+      <div class="composer-label">✍️ Your reply ${s.edited_draft!=null?'<span class="edited">EDITED</span>':''}</div>
+      <textarea class="reply-box" id="reply-${it.id}" spellcheck="true"
+        oninput="onReplyInput('${it.id}', this.value)">${esc(reply)}</textarea>
+      <div class="composer-actions">
+        <button class="btn btn-send" id="send-${it.id}" onclick="sendReply('${it.id}')">✈ Send Reply</button>
+        <button class="btn btn-ghost" onclick="saveDraft('${it.id}')">Save as draft</button>
+        <div class="action-icons">
+          <button class="icon-action" title="Archive" onclick="mailAction('${it.id}','archive')">📦</button>
+          <button class="icon-action" title="Trash" onclick="mailAction('${it.id}','trash')">🗑️</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>`;
 }
 
-function renderCreatorProfile(c) {
-  const recClass = { approve: 'rec-approve', caution: 'rec-caution', decline: 'rec-decline' }[c.recommendation] || 'rec-caution';
-  return `
-<div class="creator-profile">
-  <h4>Creator Profile</h4>
-  <div class="creator-stats">
-    <div class="creator-stat"><span class="label">Handle</span><span class="value">${esc(c.handle)}</span></div>
-    <div class="creator-stat"><span class="label">Platforms</span><span class="value">${esc(c.platforms)}</span></div>
-    <div class="creator-stat"><span class="label">Followers</span><span class="value">${esc(c.followers)}</span></div>
-    <div class="creator-stat"><span class="label">Engagement</span><span class="value">${esc(c.engagement)}</span></div>
-    <div class="creator-stat"><span class="label">Content</span><span class="value">${esc(c.contentType)}</span></div>
-    <div class="creator-stat"><span class="label">Asking for</span><span class="value">${esc(c.ask)}</span></div>
-  </div>
-  <span class="creator-rec ${recClass}">${c.recText}</span>
-</div>`;
+function updateCounts() {
+  const cats = ['all','dining','catering','creator','review','donation','vendor','job'];
+  const counts = {};
+  ITEMS.forEach(it => { if (itemState(it.id).done) return; counts.all=(counts.all||0)+1; counts[it.category]=(counts[it.category]||0)+1; });
+  cats.forEach(c => { const el=document.getElementById(`c-${c}`); if (el) el.textContent = counts[c]||0; });
+  document.getElementById('stat-pending').textContent = counts.all || 0;
 }
 
-function categoryLabel(cat) {
-  return { dining:'Group Dining', catering:'Catering', creator:'Creator', review:'Review', donation:'Donation', vendor:'Vendor', job:'Job App' }[cat] || cat;
+// ── Interactions ──────────────────────────────────────────────────────────────
+function toggleOpen(id) {
+  const open = !itemState(id).open;
+  setItemState(id, { open });
+  document.getElementById(`mail-${id}`)?.classList.toggle('open', open);
 }
 
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ── Card interactions ─────────────────────────────────────────────────────────
-
-function bindCardEvents() {
-  // auto-expand first card's draft
-  const first = filteredItems()[0];
-  if (first) {
-    const body = document.getElementById(`draft-body-${first.id}`);
-    const toggle = document.querySelector(`#card-${first.id} .draft-toggle`);
-    if (body && !body.classList.contains('open')) {
-      body.classList.add('open');
-      if (toggle) toggle.classList.add('open');
-    }
+function onReplyInput(id, value) {
+  const item = ITEMS.find(i => i.id === id);
+  setItemState(id, { edited_draft: value });
+  // update EDITED tag live without full re-render
+  const lbl = document.querySelector(`#mail-${id} .composer-label`);
+  if (lbl && value !== item.draft && !lbl.querySelector('.edited')) {
+    lbl.insertAdjacentHTML('beforeend', ' <span class="edited">EDITED</span>');
   }
 }
 
-function toggleDraft(id) {
-  const body = document.getElementById(`draft-body-${id}`);
-  const toggle = document.querySelector(`#card-${id} .draft-toggle`);
-  body.classList.toggle('open');
-  toggle.classList.toggle('open');
-}
-
-function startEdit(id) {
-  const s = getItemState(id);
-  const draft = s.edited_draft || ITEMS.find(i => i.id === id).draft;
-  document.getElementById(`draft-text-${id}`).style.display = 'none';
-  const ta = document.getElementById(`draft-edit-${id}`);
-  ta.value = draft;
-  ta.classList.add('open');
-  document.getElementById(`btn-edit-${id}`).style.display = 'none';
-  document.getElementById(`btn-save-${id}`).style.display = 'inline-flex';
-  document.getElementById(`btn-cancel-${id}`).style.display = 'inline-flex';
-  const body = document.getElementById(`draft-body-${id}`);
-  if (!body.classList.contains('open')) toggleDraft(id);
-}
-
-function saveEdit(id) {
-  const val = document.getElementById(`draft-edit-${id}`).value;
-  updateItemState(id, { edited_draft: val });
-  toast('Draft saved.', 'info');
-  render();
-}
-
-function cancelEdit(id) {
-  document.getElementById(`draft-text-${id}`).style.display = '';
-  document.getElementById(`draft-edit-${id}`).classList.remove('open');
-  document.getElementById(`btn-edit-${id}`).style.display = '';
-  document.getElementById(`btn-save-${id}`).style.display = 'none';
-  document.getElementById(`btn-cancel-${id}`).style.display = 'none';
-}
-
-// ── Gmail actions ─────────────────────────────────────────────────────────────
-
-async function approveDraft(id) {
+async function toggleFlag(id) {
   const item = ITEMS.find(i => i.id === id);
-  const s = getItemState(id);
-  const draftBody = s.edited_draft || item.draft;
+  const now = !item.flagged;
+  item.flagged = now;
+  setItemState(id, { flagged: now });
+  document.getElementById(`star-${id}`)?.classList.toggle('on', now);
+  toast(now ? `Flagged ${item.sender}` : `Unflagged ${item.sender}`, 'info');
+  await callApi('flag', { id, threadId: item.threadId, flagged: now });
+}
 
-  // Try Cloudflare Function API first
-  const result = await callApi('create_draft', {
-    id, threadId: item.threadId, to: item.email, subject: `Re: ${item.subject}`, body: draftBody
+async function sendReply(id) {
+  const item = ITEMS.find(i => i.id === id);
+  const s = itemState(id);
+  const body = (s.edited_draft != null ? s.edited_draft : item.draft).trim();
+  if (!body) { toast('Reply is empty.', 'warning'); return; }
+  if (!item.email) { toast('No recipient address on this email.', 'warning'); return; }
+
+  const btn = document.getElementById(`send-${id}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+
+  const res = await callApi('send', {
+    id, threadId: item.threadId, to: item.email, subject: replySubject(item.subject), body,
   });
 
-  if (result.ok) {
-    toast(`Draft saved to Gmail for ${item.sender}.`, 'success');
+  if (res.ok) {
+    toast(`Reply sent to ${item.sender}.`, 'success');
+    markDone(id);
   } else {
-    // Fallback: open mailto
-    const mailto = `mailto:${item.email || ''}?subject=${encodeURIComponent('Re: ' + item.subject)}&body=${encodeURIComponent(draftBody)}`;
-    window.open(mailto);
-    toast(`Opened in mail client (Gmail API not connected).`, 'warning');
+    toast(`Send failed${res.detail ? ': ' + res.detail : ''}.`, 'warning');
+    if (btn) { btn.disabled = false; btn.textContent = '✈ Send Reply'; }
   }
-  markDone(id);
 }
 
-async function gmailAction(id, action) {
+async function saveDraft(id) {
   const item = ITEMS.find(i => i.id === id);
+  const s = itemState(id);
+  const body = (s.edited_draft != null ? s.edited_draft : item.draft).trim();
+  if (!body) { toast('Reply is empty.', 'warning'); return; }
+  const res = await callApi('create_draft', {
+    id, threadId: item.threadId, to: item.email, subject: replySubject(item.subject), body,
+  });
+  toast(res.ok ? `Saved to Gmail drafts for ${item.sender}.` : 'Could not save draft.', res.ok ? 'success' : 'warning');
+}
 
-  if (action === 'flag') {
-    const s = getItemState(id);
-    const nowFlagged = !s.flagged;
-    updateItemState(id, { flagged: nowFlagged });
-    const btn = document.getElementById(`btn-flag-${id}`);
-    if (btn) btn.classList.toggle('flagged', nowFlagged);
-    toast(nowFlagged ? `Flagged: ${item.sender}` : `Unflagged: ${item.sender}`, 'info');
+async function mailAction(id, action) {
+  const item = ITEMS.find(i => i.id === id);
+  const res = await callApi(action, { id, threadId: item.threadId });
+  const labels = { archive: '📦 Archived', trash: '🗑️ Trashed' };
+  toast(`${labels[action]} ${item.sender}${res.ok ? '' : ' (failed)'}`, res.ok ? 'success' : 'warning');
+  if (res.ok) markDone(id);
+}
 
-    await callApi('flag', { id, threadId: item.threadId, flagged: nowFlagged });
-    return;
-  }
+function replySubject(subject) {
+  const s = subject || '';
+  return /^re:/i.test(s) ? s : `Re: ${s}`;
+}
 
-  const result = await callApi(action, { id, threadId: item.threadId });
-  const labels = { archive: '📦 Archived', trash: '🗑️ Moved to trash' };
-  if (result.ok) {
-    toast(`${labels[action]}: ${item.sender}`, 'success');
-  } else {
-    toast(`${labels[action]}: ${item.sender} (Gmail API not connected — marked locally)`, 'warning');
-  }
-  if (action !== 'flag') markDone(id);
+function markDone(id) {
+  setItemState(id, { done: true });
+  const el = document.getElementById(`mail-${id}`);
+  if (el) { el.style.transition='opacity .25s'; el.style.opacity='0'; setTimeout(() => { ITEMS = ITEMS.filter(i=>i.id!==id); render(); }, 250); }
+  else render();
 }
 
 async function callApi(action, payload) {
   try {
     const res = await fetch('/api/gmail', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, ...payload }),
     });
-    if (res.ok) return { ok: true, data: await res.json() };
-    return { ok: false };
-  } catch {
-    return { ok: false };
-  }
+    if (res.ok) return { ok: true, data: await res.json().catch(()=>({})) };
+    const e = await res.json().catch(()=>({}));
+    return { ok: false, detail: e.error || `HTTP ${res.status}` };
+  } catch (e) { return { ok: false, detail: e.message }; }
 }
 
-function skipItem(id) {
-  toast('Skipped — item stays in queue.', 'info');
-}
-
-function markDone(id) {
-  updateItemState(id, { done: true });
-  const card = document.getElementById(`card-${id}`);
-  if (card) {
-    card.classList.add('done');
-    setTimeout(() => render(), 600);
-  }
-  updateHeaderStats();
-}
-
-// ── Badges & stats ────────────────────────────────────────────────────────────
-
-function updateBadges() {
-  const cats = ['all','dining','catering','creator','review','donation','vendor','job'];
-  const counts = {};
-  cats.forEach(c => counts[c] = 0);
-  ITEMS.forEach(item => {
-    if (getItemState(item.id).done) return;
-    counts.all++;
-    counts[item.category] = (counts[item.category] || 0) + 1;
-  });
-  cats.forEach(c => {
-    const el = document.getElementById(`badge-${c}`);
-    if (el) el.textContent = counts[c] || 0;
-  });
-}
-
-function updateHeaderStats() {
-  const pending = ITEMS.filter(i => !getItemState(i.id).done).length;
-  const done = ITEMS.filter(i => getItemState(i.id).done).length;
-  document.getElementById('stat-pending').textContent = pending;
-  document.getElementById('stat-done').textContent = done;
-}
-
-function refreshStats() {
-  toast('Refreshing inbox…', 'info');
-  loadInbox();
-}
-
-// ── Filter tabs ───────────────────────────────────────────────────────────────
-
-document.getElementById('filter-bar').addEventListener('click', e => {
-  const tab = e.target.closest('.filter-tab');
-  if (!tab) return;
-  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-  tab.classList.add('active');
-  activeFilter = tab.dataset.filter;
-  render();
+// ── Folders ───────────────────────────────────────────────────────────────────
+document.getElementById('folders').addEventListener('click', e => {
+  const f = e.target.closest('.folder'); if (!f) return;
+  document.querySelectorAll('.folder').forEach(x => x.classList.remove('active'));
+  f.classList.add('active'); activeFolder = f.dataset.folder; render();
 });
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
-
-function toast(msg, type = 'info') {
-  const container = document.getElementById('toast-container');
-  const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.textContent = msg;
-  container.appendChild(el);
-  setTimeout(() => el.remove(), 3500);
-}
-
-// ── Banner ────────────────────────────────────────────────────────────────────
-
-function dismissBanner() {
-  document.getElementById('connect-banner').style.display = 'none';
-  localStorage.setItem('bs-banner-dismissed', '1');
-}
-
-if (localStorage.getItem('bs-banner-dismissed')) {
-  document.getElementById('connect-banner').style.display = 'none';
-}
-
-// Auto-hide the banner if Gmail API responds successfully
-async function checkGmailConnection() {
-  if (localStorage.getItem('bs-banner-dismissed')) return;
+// ── Connect modal ──────────────────────────────────────────────────────────────
+function openConnect() { document.getElementById('connect-modal').style.display = 'flex'; refreshConnStatus(); }
+function closeConnect() { document.getElementById('connect-modal').style.display = 'none'; }
+async function refreshConnStatus() {
+  const g = document.getElementById('status-gmail'), b = document.getElementById('status-gbp');
   try {
-    const res = await fetch('/api/gmail', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'ping' }),
-    });
-    // Any response other than 503 means the Function is reachable and credentials loaded
-    if (res.status !== 503) {
-      document.getElementById('connect-banner').style.display = 'none';
-      localStorage.setItem('bs-banner-dismissed', '1');
-    }
-  } catch {}
+    const res = await fetch('/api/gmail', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'whoami'}) });
+    if (res.status === 503) { g.textContent='⚠️ Not connected'; b.textContent='⚠️ Not connected'; return; }
+    const { email, gbpEmail } = await res.json();
+    g.textContent = email ? `✅ Connected as ${email}` : 'Connected (account unknown)';
+    b.textContent = gbpEmail ? `✅ Connected as ${gbpEmail}` : '⚠️ Not connected separately';
+  } catch { g.textContent = b.textContent = 'Could not check status.'; }
 }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeConnect(); });
 
-// ── Inbox loader ─────────────────────────────────────────────────────────────
-
-async function loadInbox() {
-  document.getElementById('loading-state').style.display = 'block';
-  document.getElementById('cards-container').innerHTML = '';
-  document.getElementById('empty-state').style.display = 'none';
-  document.getElementById('error-state').style.display = 'none';
-
-  try {
-    const res = await fetch('/api/gmail', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'list' }),
-    });
-
-    document.getElementById('loading-state').style.display = 'none';
-
-    if (res.status === 503) {
-      document.getElementById('error-detail').textContent = 'Gmail not connected — check KV credentials.';
-      document.getElementById('error-state').style.display = 'block';
-      return;
-    }
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      document.getElementById('error-detail').textContent = err.error || `Error ${res.status}`;
-      document.getElementById('error-state').style.display = 'block';
-      return;
-    }
-
-    const { items } = await res.json();
-    ITEMS = items || [];
-
-    // Gmail connected — hide the banner permanently
-    document.getElementById('connect-banner').style.display = 'none';
-    localStorage.setItem('bs-banner-dismissed', '1');
-
-    render();
-  } catch (e) {
-    document.getElementById('loading-state').style.display = 'none';
-    document.getElementById('error-detail').textContent = e.message;
-    document.getElementById('error-state').style.display = 'block';
-  }
-}
-
-// ── Connect-account modal ─────────────────────────────────────────────────────
-
-function openConnectModal() {
-  document.getElementById('connect-modal').style.display = 'flex';
-  refreshConnectStatus();
-}
-function closeConnectModal() {
-  document.getElementById('connect-modal').style.display = 'none';
-}
-
-async function refreshConnectStatus() {
-  const el = document.getElementById('connect-status');
-  try {
-    const res = await fetch('/api/gmail', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'whoami' }),
-    });
-    if (res.status === 503) { el.textContent = '⚠️ No account connected yet.'; return; }
-    const { email } = await res.json();
-    el.textContent = email ? `✅ Connected as: ${email}` : 'Connected (account email unknown).';
-  } catch {
-    el.textContent = 'Could not check connection status.';
-  }
-}
-
-// Handle the OAuth redirect back from Google
-(function handleConnectRedirect() {
+// Handle OAuth redirect
+(function handleRedirect() {
   const p = new URLSearchParams(location.search);
-  const status = p.get('connected');
-  if (!status) return;
-  if (status === 'ok') {
-    const email = p.get('email');
-    toast(email ? `✅ Connected as ${email}` : '✅ Account connected', 'success');
-  } else {
-    toast(`Connection failed: ${p.get('reason') || 'unknown error'}`, 'warning');
-  }
-  // Clean the URL so a refresh doesn't re-toast
+  if (!p.get('connected')) return;
+  const svc = p.get('service') === 'gmail' ? 'Gmail' : p.get('service') === 'gbp' ? 'Business Profile' : 'Account';
+  if (p.get('connected') === 'ok') toast(`✅ ${svc} connected${p.get('email') ? ' as ' + p.get('email') : ''}`, 'success');
+  else toast(`${svc} connection failed: ${p.get('reason') || 'unknown'}`, 'warning');
   history.replaceState({}, '', location.pathname);
 })();
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeConnectModal(); });
-
 // ── Init ──────────────────────────────────────────────────────────────────────
-
 loadInbox();
 </script>
 </body>
