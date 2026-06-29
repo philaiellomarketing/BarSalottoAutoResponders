@@ -98,6 +98,9 @@
     .btn-post:hover { filter: brightness(1.2); }
     .btn-gold { background: var(--gold); color: #fff; }
     .btn-gold:hover { filter: brightness(1.1); }
+    .btn-ai { background: var(--gold-pale); color: var(--gold); border: 1px solid var(--gold); }
+    .btn-ai:hover { background: #f3e6c8; }
+    .btn-ai:disabled { opacity: .65; cursor: default; }
     .btn-skip { background: none; border: 1px solid var(--border); color: var(--text-muted); }
     .btn-skip:hover { background: var(--cream-dark); }
 
@@ -330,6 +333,49 @@ async function load() {
   }
 }
 
+// ── AI rewrite ────────────────────────────────────────────────────────────────
+
+function bandJS(s){ if(s==null) return 'pos'; if(s>=4) return 'pos'; if(s===3) return 'neu'; return 'neg'; }
+
+function pickExamples(r){
+  const all = (data.answered || []).filter(x => x.ownerReply && (x.comment || '').trim());
+  const b = bandJS(r.stars);
+  const same = all.filter(x => bandJS(x.stars) === b);
+  const other = all.filter(x => bandJS(x.stars) !== b);
+  const picked = [...same.slice(0, 6), ...other.slice(0, 6 - Math.min(same.length, 6))].slice(0, 8);
+  return picked.map(x => ({ stars: x.stars, comment: x.comment, reply: x.ownerReply }));
+}
+
+async function aiRewrite(reviewName){
+  const r = (data.unanswered || []).find(x => x.reviewName === reviewName);
+  if (!r) return;
+  const btn = document.getElementById('ai-' + cssId(reviewName));
+  if (btn) { btn.disabled = true; btn.textContent = 'Writing…'; }
+  try {
+    const res = await fetch('/api/reviews', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'suggest', reviewer: r.reviewer, stars: r.stars, comment: r.comment, examples: pickExamples(r) }),
+    });
+    if (res.status === 503) {
+      toast('AI not enabled yet — add an Anthropic API key (bs:anthropic:key) in Cloudflare KV.', 'warning');
+      return;
+    }
+    const out = await res.json();
+    if (out.ok && out.text) {
+      drafts[reviewName] = out.text;
+      const ta = document.getElementById('draft-' + cssId(reviewName));
+      if (ta) ta.value = out.text;
+      toast('AI rewrote the reply in your voice — review before posting.', 'success');
+    } else {
+      toast('AI rewrite failed' + (out.detail ? ': ' + String(out.detail).slice(0, 80) : '') + '.', 'warning');
+    }
+  } catch (e) {
+    toast('AI rewrite error: ' + e.message, 'warning');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✨ Rewrite with AI'; }
+  }
+}
+
 // ── Business location picker ─────────────────────────────────────────────────
 
 async function loadLocations() {
@@ -533,6 +579,7 @@ function cardUnanswered(r) {
   </div>
   <div class="action-bar">
     <button class="btn btn-post" onclick="post('${jsStr(r.reviewName)}')">${postLabel}</button>
+    <button class="btn btn-ai" id="ai-${cssId(r.reviewName)}" onclick="aiRewrite('${jsStr(r.reviewName)}')">✨ Rewrite with AI</button>
     <button class="btn btn-skip" onclick="skip('${jsStr(r.reviewName)}')">Skip</button>
     ${r.isManual ? `<button class="btn btn-skip" onclick="deleteManual('${jsStr(r.reviewName)}')" style="color:var(--red);border-color:var(--red)">Delete</button>` : ''}
   </div>

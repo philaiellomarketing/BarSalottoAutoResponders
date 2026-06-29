@@ -35,6 +35,19 @@ export async function onRequestPost(context) {
   try { body = await request.json(); }
   catch { return json({ error: 'invalid_json' }, 400, cors); }
 
+  // AI rewrite — independent of Google Business Profile; needs only the Anthropic key.
+  if (body.action === 'suggest') {
+    const apiKey = env.ANTHROPIC_API_KEY || (env.BS_KV && await env.BS_KV.get('bs:anthropic:key'));
+    if (!apiKey) return json({ error: 'ai_not_configured' }, 503, cors);
+    try {
+      const model = (env.BS_KV && await env.BS_KV.get('bs:anthropic:model')) || 'claude-opus-4-8';
+      const text = await aiGenerateReply(body, apiKey, model);
+      return json({ ok: true, text }, 200, cors);
+    } catch (e) {
+      return json({ error: 'ai_failed', detail: e.message }, 502, cors);
+    }
+  }
+
   const creds = await getCredentials(env);
   if (!creds) {
     return json({ error: 'gbp_not_configured', fallback: true }, 503, cors);
@@ -167,6 +180,71 @@ function band(stars) {
   if (stars >= 4) return 'pos';
   if (stars === 3) return 'neu';
   return 'neg';
+}
+
+// ── AI reply generation (Claude) ──────────────────────────────────────────────
+
+const REVIEW_SYSTEM =
+`You write Google review replies for Bar Salotto, a family-owned boutique Italian pizza bar in Arlington Heights, IL, on behalf of the owner.
+
+Voice and rules (follow exactly):
+- Warm, genuine, family-owned. Grateful without being over-effusive.
+- Reference something specific the reviewer actually mentioned (a dish, the service, the atmosphere) so the reply never reads as canned. Use ONLY details present in THIS review — never invent specifics or borrow details from the examples.
+- Address the reviewer by first name when one is given ("Thank you, Sarah!"). If anonymous, open warmly without a name.
+- Positive reviews (4-5 stars): 1-3 sentences. Thank, name the specific thing praised, invite them back. An occasional light Italian touch ("Grazie!") is welcome but optional.
+- Mixed reviews (3 stars): thank them, acknowledge the specific critique sincerely, signal it's been noted, invite them back.
+- Negative reviews (1-2 stars): lead with genuine empathy, no defensiveness, never argue facts publicly. Acknowledge the specific issue, offer to make it right, and give the direct contact ciao@barsalotto.com. Keep it short and human.
+
+HARD RULES:
+- NO sign-off of any kind. Do NOT end with "Phil", "— The Bar Salotto Team", "Management", "Warm regards", or any name/role. End on the last sentence of the reply itself.
+- No discount codes, freebies, or compensation offered publicly.
+- Output ONLY the reply text — no preamble, no quotation marks, no labels.`;
+
+function starWord(n) {
+  return ({ 1: 'one-star', 2: 'two-star', 3: 'three-star', 4: 'four-star', 5: 'five-star' })[n] || 'unrated';
+}
+
+async function aiGenerateReply({ reviewer, stars, comment, examples }, apiKey, model) {
+  const first = firstNameOf(reviewer);
+  const exBlock = (examples || []).slice(0, 8)
+    .map((e, i) => `Example ${i + 1} — ${starWord(e.stars)} review:\n"${(e.comment || '').slice(0, 600)}"\nReply: "${e.reply}"`)
+    .join('\n\n');
+
+  const user =
+    (exBlock ? `Here are examples of how Bar Salotto has replied to past reviews — match this voice (but never reuse their specific details):\n\n${exBlock}\n\n` : '') +
+    `Now write a reply to this ${starWord(stars)} review` +
+    (first ? ` from ${first}` : ' from an anonymous guest') + `:\n"${(comment || '(rating only, no text)')}"\n\n` +
+    `Write the reply now — address ${first || 'the guest'}${first ? ' by first name' : ''}, reference only what THIS review mentions, and remember: no sign-off.`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 400,
+      system: [{ type: 'text', text: REVIEW_SYSTEM, cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: user }],
+    }),
+  });
+  if (!res.ok) throw new Error('anthropic ' + res.status + ': ' + (await res.text()).slice(0, 180));
+  const data = await res.json();
+  if (data.stop_reason === 'refusal') throw new Error('model_refused');
+  const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+  return sanitizeReply(text, firstNameOf(reviewer));
+}
+
+function sanitizeReply(text, currFirst) {
+  let t = String(text || '').trim().replace(/^["']|["']$/g, '').trim();
+  // Strip an accidental sign-off line at the end
+  t = t.replace(/\n+\s*(warm regards|best regards|best|sincerely|cheers|with gratitude|— ?the bar salotto team|the bar salotto team|management|phil)[\s,!.\-–—]*$/i, '').trim();
+  t = t.replace(/\n+\s*phil\b.*$/i, '').trim();
+  // Safety net on any leftover greeting-name mismatch
+  t = swapGreetingName(t, currFirst);
+  return t.replace(/\s{2,}/g, ' ').replace(/\s+([!.,?])/g, '$1').trim();
 }
 
 function buildSuggestion(review, corpus) {
