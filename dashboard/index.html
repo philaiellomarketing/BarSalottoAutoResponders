@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0a1551">
+  <meta name="theme-color" content="#000000">
   <title>Bar Salotto — Inbox</title>
   <link rel="manifest" href="/dashboard/manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,9 +12,9 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --navy: #0a1551; --navy-mid: #1a2d7a;
+      --navy: #000000; --navy-mid: #1a1a1a;
       --gold: #c3922e; --gold-light: #e6b84a; --gold-pale: #f5e9d0;
-      --cream: #f8f6f1; --cream-dark: #ede9df;
+      --cream: #faf8f3; --cream-dark: #efece3;
       --text: #20232e; --text-muted: #6b6f7a; --border: #e3ded2;
       --red: #c0392b; --green: #1e8e63; --amber: #d2842a;
       --shadow: 0 1px 3px rgba(10,21,81,.08); --shadow-lg: 0 8px 30px rgba(10,21,81,.16);
@@ -231,7 +231,7 @@ function setItemState(id, patch) { state[id] = { ...itemState(id), ...patch }; s
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-const AVATAR_COLORS = ['#0a1551','#c3922e','#1e7d52','#6b3fa0','#1c6b85','#9a6a12','#2b3f87'];
+const AVATAR_COLORS = ['#000000','#c3922e','#3a3a3a','#9a6a12','#1a1a1a','#7a5a14','#2b2b2b'];
 function avatarColor(name){ let h=0; for(const c of String(name||'?')) h=(h*31+c.charCodeAt(0))%AVATAR_COLORS.length; return AVATAR_COLORS[h]; }
 function folderLabel(c){ return {dining:'Group Dining',catering:'Catering',creator:'Creator',review:'Review',donation:'Donation',vendor:'Vendor',job:'Job App'}[c]||c; }
 

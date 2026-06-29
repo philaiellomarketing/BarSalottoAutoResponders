@@ -3,25 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0a1551">
+  <meta name="theme-color" content="#000000">
   <title>Bar Salotto — Google Reviews</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --gold: #c3922e; --gold-light: #e6b84a; --gold-pale: #f5e9d0;
-      --navy: #0a1551; --cream: #f8f6f1; --cream-dark: #ede9df;
+      --navy: #000000; --cream: #faf8f3; --cream-dark: #efece3;
       --text: #1a1a1a; --text-muted: #666; --border: #ddd7cc;
       --red: #d63031; --amber: #e17055; --green: #00b894;
-      --shadow: 0 2px 8px rgba(10,21,81,.10); --shadow-lg: 0 6px 24px rgba(10,21,81,.15);
+      --shadow: 0 2px 8px rgba(0,0,0,.10); --shadow-lg: 0 6px 24px rgba(0,0,0,.16);
       --radius: 10px;
+      --serif: 'Playfair Display', Georgia, serif;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--cream); color: var(--text); min-height: 100vh; }
+    body { font-family: var(--sans);
+      background: var(--cream); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
 
     header { position: sticky; top: 0; z-index: 100; background: var(--navy); color: #fff;
       padding: 0 24px; height: 60px; display: flex; align-items: center; gap: 16px;
       box-shadow: 0 2px 12px rgba(0,0,0,.3); }
-    .header-logo { font-size: 18px; font-weight: 700; letter-spacing: .03em; color: var(--gold-light); white-space: nowrap; }
+    .header-logo { font-family: var(--serif); font-size: 22px; font-weight: 700; letter-spacing: .01em; color: var(--gold-light); white-space: nowrap; }
     .header-logo span { color: #fff; font-weight: 300; }
     .header-nav { margin-left: 8px; display: flex; gap: 6px; }
     .header-nav a { color: #fff; text-decoration: none; font-size: 13px; padding: 6px 12px;
