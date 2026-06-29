@@ -44,6 +44,17 @@ export async function onRequestPost(context) {
   try { token = await refreshAccessToken(creds); }
   catch (e) { return json({ error: 'token_refresh_failed', detail: e.message }, 502, cors); }
 
+  // These actions don't need a resolved location
+  if (body.action === 'locations') {
+    try { return json({ locations: await listAllLocations(token) }, 200, cors); }
+    catch (e) { return json({ error: 'locations_failed', detail: e.message }, 502, cors); }
+  }
+  if (body.action === 'set_location') {
+    if (!body.locationPath) return json({ error: 'missing_location' }, 400, cors);
+    if (env.BS_KV) await env.BS_KV.put('bs:gbp:location', body.locationPath);
+    return json({ ok: true, locationPath: body.locationPath }, 200, cors);
+  }
+
   // Resolve (and cache) the account/location resource path
   let locationPath;
   try { locationPath = await resolveLocation(env, token); }
@@ -54,6 +65,40 @@ export async function onRequestPost(context) {
     case 'reply': return replyToReview(token, body.reviewName, body.comment, cors);
     default:      return json({ error: 'unknown_action' }, 400, cors);
   }
+}
+
+// List every account → location the connected user manages, with titles, so the
+// dashboard can show which business is selected and let the owner switch.
+async function listAllLocations(token) {
+  const out = [];
+  const acctRes = await fetch(`${ACCT_API}/accounts`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!acctRes.ok) throw new Error(`accounts ${acctRes.status}: ${await acctRes.text()}`);
+  const accounts = (await acctRes.json()).accounts || [];
+  for (const acct of accounts) {
+    const accountId = acct.name.split('/')[1];
+    let pageToken = '';
+    do {
+      const url = `${INFO_API}/accounts/${accountId}/locations?readMask=name,title,storefrontAddress&pageSize=100`
+        + (pageToken ? `&pageToken=${pageToken}` : '');
+      const locRes = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!locRes.ok) break;
+      const data = await locRes.json();
+      for (const loc of (data.locations || [])) {
+        const locId = loc.name.split('/').pop();
+        const addr = loc.storefrontAddress
+          ? [loc.storefrontAddress.locality, loc.storefrontAddress.administrativeArea].filter(Boolean).join(', ')
+          : '';
+        out.push({
+          path: `accounts/${accountId}/locations/${locId}`,
+          title: loc.title || '(unnamed location)',
+          address: addr,
+          account: acct.accountName || accountId,
+        });
+      }
+      pageToken = data.nextPageToken || '';
+    } while (pageToken);
+  }
+  return out;
 }
 
 export async function onRequestOptions(context) {
@@ -84,7 +129,7 @@ async function listReviews(token, locationPath, cors) {
   return json({
     answered,
     unanswered,
-    meta: { total: all.length, answered: answered.length, unanswered: unanswered.length },
+    meta: { total: all.length, answered: answered.length, unanswered: unanswered.length, locationPath },
   }, 200, cors);
 }
 

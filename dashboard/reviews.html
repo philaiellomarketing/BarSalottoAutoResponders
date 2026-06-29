@@ -159,6 +159,8 @@
   <button class="refresh-btn" id="refresh-btn" onclick="refreshNow()" title="Check for new reviews now">
     <span class="ref-icon">↻</span> Refresh</button>
   <a class="refresh-btn" href="/api/oauth/start?service=gbp" title="Connect / switch the Google account that manages this business profile">⚙️ Connect Business Profile</a>
+  <select id="biz-select" class="refresh-btn" style="display:none" onchange="chooseLocation(this.value)" title="Choose which business location"></select>
+  <a class="refresh-btn" href="#" onclick="clearLocal();return false" title="Remove manually-entered reviews saved in this browser">🧹 Clear saved</a>
   <span class="last-checked" id="last-checked"></span>
   <div class="tabs">
     <button class="tab active" data-tab="unanswered">Needs Reply <span class="badge" id="badge-unanswered">0</span></button>
@@ -298,6 +300,7 @@ async function load() {
     // Also merge any manual reviews not yet on Google
     loadManualReviews();
     render();
+    loadLocations();
   } catch (e) {
     // Network error — still show any saved manual reviews
     loadManualReviews();
@@ -307,6 +310,46 @@ async function load() {
       renderError(e.message);
     }
   }
+}
+
+// ── Business location picker ─────────────────────────────────────────────────
+
+async function loadLocations() {
+  try {
+    const res = await fetch('/api/reviews', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'locations' }),
+    });
+    if (!res.ok) return;
+    const { locations } = await res.json();
+    const sel = document.getElementById('biz-select');
+    if (!locations || !locations.length) { sel.style.display = 'none'; return; }
+    sel.innerHTML = locations.map(l =>
+      `<option value="${l.path}">${esc(l.title)}${l.address ? ' — ' + esc(l.address) : ''}</option>`).join('');
+    if (data.meta && data.meta.locationPath) sel.value = data.meta.locationPath;
+    sel.style.display = '';
+    if (locations.length > 1) {
+      toast(`${locations.length} business locations on this account — pick Bar Salotto if it isn't selected.`, 'info');
+    }
+  } catch {}
+}
+
+async function chooseLocation(path) {
+  await fetch('/api/reviews', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'set_location', locationPath: path }),
+  });
+  toast('Switched business location — reloading reviews…', 'info');
+  load().then(updateLastChecked);
+}
+
+function clearLocal() {
+  localStorage.removeItem(MANUAL_KEY);
+  data.answered   = (data.answered   || []).filter(r => !r.isManual);
+  data.unanswered = (data.unanswered || []).filter(r => !r.isManual);
+  recalcMeta();
+  rerender();
+  toast('Cleared manually-saved reviews from this browser.', 'info');
 }
 
 // ── Draft generator ─────────────────────────────────────────────────────────
