@@ -7,9 +7,14 @@
   <title>Bar Salotto — Google Reviews</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @font-face {
+      font-family: 'Capoon';
+      src: url('/dashboard/fonts/Capoon.otf') format('opentype');
+      font-weight: 400 700; font-display: swap;
+    }
     :root {
       --gold: #c3922e; --gold-light: #e6b84a; --gold-pale: #f5e9d0;
       --navy: #000000; --cream: #faf8f3; --cream-dark: #efece3;
@@ -17,7 +22,8 @@
       --red: #d63031; --amber: #e17055; --green: #00b894;
       --shadow: 0 2px 8px rgba(0,0,0,.10); --shadow-lg: 0 6px 24px rgba(0,0,0,.16);
       --radius: 10px;
-      --serif: 'Playfair Display', Georgia, serif;
+      --display: 'Capoon', 'Bodoni Moda', Georgia, serif;
+      --serif: 'Bodoni Moda', Georgia, serif;
       --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
     body { font-family: var(--sans);
@@ -26,7 +32,7 @@
     header { position: sticky; top: 0; z-index: 100; background: var(--navy); color: #fff;
       padding: 0 24px; height: 60px; display: flex; align-items: center; gap: 16px;
       box-shadow: 0 2px 12px rgba(0,0,0,.3); }
-    .header-logo { font-family: var(--serif); font-size: 22px; font-weight: 700; letter-spacing: .01em; color: var(--gold-light); white-space: nowrap; }
+    .header-logo { font-family: var(--display); font-size: 23px; font-weight: 600; letter-spacing: .02em; color: var(--gold-light); white-space: nowrap; }
     .header-logo span { color: #fff; font-weight: 300; }
     .header-nav { margin-left: 8px; display: flex; gap: 6px; }
     .header-nav a { color: #fff; text-decoration: none; font-size: 13px; padding: 6px 12px;
