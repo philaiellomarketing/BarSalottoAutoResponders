@@ -126,7 +126,7 @@ async function listReviews(token, locationPath, cors) {
   do {
     const url = `${MB_V4}/${locationPath}/reviews?pageSize=50` +
                 (pageToken ? `&pageToken=${pageToken}` : '');
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await gfetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) {
       const detail = await res.text();
       return json({ error: 'reviews_fetch_failed', status: res.status, detail }, res.status, cors);
@@ -187,13 +187,16 @@ function band(stars) {
 const REVIEW_SYSTEM =
 `You write Google review replies for Bar Salotto, a family-owned boutique Italian pizza bar in Arlington Heights, IL, on behalf of the owner.
 
+Your #1 job is SPECIFICITY. A reply that could be pasted under any review is a failure. Before writing, pick out the concrete things THIS reviewer named — a dish or pizza, a cocktail or drink, a server or staff member by name, the occasion (date night, birthday, family dinner), or a specific detail about the service or atmosphere — and build the reply around at least one of them, naming it explicitly.
+
 Voice and rules (follow exactly):
 - Warm, genuine, family-owned. Grateful without being over-effusive.
-- Reference something specific the reviewer actually mentioned (a dish, the service, the atmosphere) so the reply never reads as canned. Use ONLY details present in THIS review — never invent specifics or borrow details from the examples.
+- Ground every reply in details from THIS review only. Never invent a dish, drink, or name the reviewer didn't mention, and never carry over specifics from the example replies. If the review truly names nothing specific (rating only, or "great food"), stay warm and general rather than fabricating.
+- If the reviewer named a server or staff member, mention them by name and say you'll pass the kind words along.
 - Address the reviewer by first name when one is given ("Thank you, Sarah!"). If anonymous, open warmly without a name.
-- Positive reviews (4-5 stars): 1-3 sentences. Thank, name the specific thing praised, invite them back. An occasional light Italian touch ("Grazie!") is welcome but optional.
-- Mixed reviews (3 stars): thank them, acknowledge the specific critique sincerely, signal it's been noted, invite them back.
-- Negative reviews (1-2 stars): lead with genuine empathy, no defensiveness, never argue facts publicly. Acknowledge the specific issue, offer to make it right, and give the direct contact ciao@barsalotto.com. Keep it short and human.
+- Positive (4-5 stars): 1-3 sentences. Thank them, name the specific thing they loved, invite them back. A light Italian touch ("Grazie!") is welcome but optional.
+- Mixed (3 stars): thank them, acknowledge the specific critique sincerely, signal it's noted, invite them back.
+- Negative (1-2 stars): lead with genuine empathy, no defensiveness, never argue facts publicly. Name the specific issue they raised, offer to make it right, and give the direct contact ciao@barsalotto.com. Keep it short and human.
 
 HARD RULES:
 - NO sign-off of any kind. Do NOT end with "Phil", "— The Bar Salotto Team", "Management", "Warm regards", or any name/role. End on the last sentence of the reply itself.
@@ -206,15 +209,33 @@ function starWord(n) {
 
 async function aiGenerateReply({ reviewer, stars, comment, examples }, apiKey, model) {
   const first = firstNameOf(reviewer);
-  const exBlock = (examples || []).slice(0, 8)
-    .map((e, i) => `Example ${i + 1} — ${starWord(e.stars)} review:\n"${(e.comment || '').slice(0, 600)}"\nReply: "${e.reply}"`)
-    .join('\n\n');
+  const list = (examples || []).filter(e => e && e.reply);
+
+  // Pick the closest past reply (by keyword overlap with THIS review) as the tone
+  // anchor; the rest illustrate the general voice.
+  const rTokens = tokenize(comment);
+  let reference = null, bestOverlap = -1;
+  for (const e of list) {
+    const overlap = tokenize(e.comment).filter(t => rTokens.includes(t)).length;
+    if (overlap > bestOverlap) { bestOverlap = overlap; reference = e; }
+  }
+  const rest = list.filter(e => e !== reference).slice(0, 5);
+
+  const refBlock = reference
+    ? `CLOSEST PAST REPLY (use its warmth and structure as your starting point, then rewrite it to fit THIS review — do NOT keep its specific dishes/names):\nTheir ${starWord(reference.stars)} review: "${(reference.comment || '').slice(0, 600)}"\nOur reply: "${reference.reply}"\n\n`
+    : '';
+  const restBlock = rest.length
+    ? `More examples of our voice:\n` + rest.map((e, i) =>
+        `${i + 1}. (${starWord(e.stars)}) "${(e.comment || '').slice(0, 300)}" → "${e.reply}"`).join('\n') + '\n\n'
+    : '';
 
   const user =
-    (exBlock ? `Here are examples of how Bar Salotto has replied to past reviews — match this voice (but never reuse their specific details):\n\n${exBlock}\n\n` : '') +
-    `Now write a reply to this ${starWord(stars)} review` +
-    (first ? ` from ${first}` : ' from an anonymous guest') + `:\n"${(comment || '(rating only, no text)')}"\n\n` +
-    `Write the reply now — address ${first || 'the guest'}${first ? ' by first name' : ''}, reference only what THIS review mentions, and remember: no sign-off.`;
+    refBlock + restBlock +
+    `THIS ${starWord(stars)} review${first ? ` from ${first}` : ' (anonymous)'}:\n"${comment || '(rating only, no text)'}"\n\n` +
+    `Steps:\n` +
+    `1. List the specific things this reviewer named (dishes, drinks, server/staff names, the occasion, standout service/atmosphere details). If none, note that.\n` +
+    `2. Write the reply: start from the closest past reply's tone, but reference the specifics from step 1 by name so it clearly belongs to THIS review. Address ${first || 'the guest'}${first ? ' by first name' : ''}. No sign-off.\n\n` +
+    `Output ONLY the final reply text (not the step-1 list).`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -225,7 +246,7 @@ async function aiGenerateReply({ reviewer, stars, comment, examples }, apiKey, m
     },
     body: JSON.stringify({
       model,
-      max_tokens: 400,
+      max_tokens: 500,
       system: [{ type: 'text', text: REVIEW_SYSTEM, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: user }],
     }),
@@ -329,19 +350,34 @@ async function replyToReview(token, reviewName, comment, cors) {
   if (!reviewName || !comment) {
     return json({ error: 'missing_fields', need: ['reviewName', 'comment'] }, 400, cors);
   }
-  const res = await fetch(`${MB_V4}/${reviewName}/reply`, {
+  const res = await gfetch(`${MB_V4}/${reviewName}/reply`, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ comment }),
   });
   if (!res.ok) {
     const detail = await res.text();
-    return json({ error: 'reply_failed', status: res.status, detail }, res.status, cors);
+    const msg = res.status === 503
+      ? 'Google is temporarily busy (503). We retried automatically — please try posting again in a moment.'
+      : `reply_failed (${res.status})`;
+    return json({ error: 'reply_failed', status: res.status, message: msg, detail }, res.status, cors);
   }
   return json({ ok: true }, 200, cors);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Google's My Business v4 API intermittently returns 503/429/5xx under load.
+// Retry those a few times with exponential backoff before surfacing an error.
+async function gfetch(url, opts = {}, tries = 4) {
+  let last;
+  for (let i = 0; i < tries; i++) {
+    last = await fetch(url, opts);
+    if (last.status !== 503 && last.status !== 429 && last.status < 500) return last;
+    if (i < tries - 1) await new Promise(r => setTimeout(r, 400 * Math.pow(2, i))); // 400,800,1600ms
+  }
+  return last;
+}
 
 const STAR_MAP = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 };
 

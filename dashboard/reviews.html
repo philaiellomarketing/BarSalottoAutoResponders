@@ -643,8 +643,9 @@ async function post(reviewName) {
       }
       render();
     } else {
-      const detail = await res.text();
-      toast('Post failed — ' + detail.slice(0, 100), 'warning');
+      let msg = `Post failed (${res.status})`;
+      try { const e = await res.json(); if (e.message) msg = e.message; else if (e.error) msg = 'Post failed — ' + e.error; } catch {}
+      toast(msg, 'warning');
     }
   } catch (e) { toast('Network error: ' + e.message, 'warning'); }
 }
