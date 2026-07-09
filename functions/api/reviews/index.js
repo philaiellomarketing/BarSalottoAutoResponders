@@ -147,7 +147,7 @@ async function listReviews(token, locationPath, cors) {
     .map(r => ({ stars: r.stars, comment: r.comment, reply: r.ownerReply, reviewer: r.reviewer }));
 
   unanswered.forEach(r => {
-    const s = buildSuggestion(r, corpus);
+    const s = buildSuggestion(r);
     r.suggested = s.text;
     r.matchScore = s.score;
     r.care = s.care;
@@ -198,6 +198,11 @@ Voice and rules (follow exactly):
 - Mixed (3 stars): thank them, acknowledge the specific critique sincerely, signal it's noted, invite them back.
 - Negative (1-2 stars): lead with genuine empathy, no defensiveness, never argue facts publicly. Name the specific issue they raised, offer to make it right, and give the direct contact ciao@barsalotto.com. Keep it short and human.
 
+MENU ACCURACY:
+- A menu reference is provided. If the reviewer names a dish, pizza, pasta, or cocktail, use the EXACT spelling and capitalization from the menu (e.g. "Spicy Vodka", "Fig & Pig", "Wagyu-Veal Meatballs").
+- Only mention a menu item the reviewer actually brought up. Never suggest or name a dish they didn't mention.
+- Our chef is Chef Gary Baca — you may reference him warmly when it fits, but don't force it.
+
 HARD RULES:
 - NO sign-off of any kind. Do NOT end with "Phil", "— The Bar Salotto Team", "Management", "Warm regards", or any name/role. End on the last sentence of the reply itself.
 - No discount codes, freebies, or compensation offered publicly.
@@ -229,13 +234,27 @@ async function aiGenerateReply({ reviewer, stars, comment, examples }, apiKey, m
         `${i + 1}. (${starWord(e.stars)}) "${(e.comment || '').slice(0, 300)}" → "${e.reply}"`).join('\n') + '\n\n'
     : '';
 
+  const sig = extractSignals(comment);
+  const sigHint = (sig.items.length || sig.staff.length || sig.occasion)
+    ? `Detected in this review — ${[
+        sig.items.length ? `menu items: ${sig.items.join(', ')}` : '',
+        sig.staff.length ? `staff named: ${sig.staff.join(', ')}` : '',
+        sig.occasion ? `occasion: ${sig.occasion}` : '',
+      ].filter(Boolean).join('; ')}. Weave these in (correct any misspellings against the menu). `
+    : `This review names nothing specific — keep it warm and general; do NOT invent a dish or detail. `;
+
   const user =
     refBlock + restBlock +
     `THIS ${starWord(stars)} review${first ? ` from ${first}` : ' (anonymous)'}:\n"${comment || '(rating only, no text)'}"\n\n` +
-    `Steps:\n` +
-    `1. List the specific things this reviewer named (dishes, drinks, server/staff names, the occasion, standout service/atmosphere details). If none, note that.\n` +
-    `2. Write the reply: start from the closest past reply's tone, but reference the specifics from step 1 by name so it clearly belongs to THIS review. Address ${first || 'the guest'}${first ? ' by first name' : ''}. No sign-off.\n\n` +
-    `Output ONLY the final reply text (not the step-1 list).`;
+    sigHint + '\n\n' +
+    `Steps (internal):\n` +
+    `1. Note the specific things this reviewer named (dishes/drinks by exact menu name, server/staff, occasion, standout service or atmosphere). If none, note that.\n` +
+    `2. Write the reply: adopt the closest past reply's warmth, but ground it in step-1 specifics so it unmistakably belongs to THIS review. Address ${first || 'the guest'}${first ? ' by first name' : ''}. No sign-off.\n\n` +
+    `Output ONLY the final reply text (not the step-1 notes).`;
+
+  const menuRef = `MENU REFERENCE (exact names for spelling — reference only what the guest mentions):\n` +
+    `Chef: ${CHEF}.\nDishes: ${MENU_ITEMS.filter(n => !/Spritz|Mule|Gimlet|Negroni|Martini|Manhattan|Collins|Word|Slush|Sangria|Cooler|Maple|Old Fashioned/.test(n)).join(', ')}.\n` +
+    `Cocktails: ${MENU_ITEMS.filter(n => /Spritz|Mule|Gimlet|Negroni|Martini|Manhattan|Collins|Word|Slush|Sangria|Cooler|Maple|Old Fashioned/.test(n)).join(', ')}.`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -247,7 +266,10 @@ async function aiGenerateReply({ reviewer, stars, comment, examples }, apiKey, m
     body: JSON.stringify({
       model,
       max_tokens: 500,
-      system: [{ type: 'text', text: REVIEW_SYSTEM, cache_control: { type: 'ephemeral' } }],
+      system: [
+        { type: 'text', text: REVIEW_SYSTEM },
+        { type: 'text', text: menuRef, cache_control: { type: 'ephemeral' } },
+      ],
       messages: [{ role: 'user', content: user }],
     }),
   });
@@ -268,36 +290,107 @@ function sanitizeReply(text, currFirst) {
   return t.replace(/\s{2,}/g, ' ').replace(/\s+([!.,?])/g, '$1').trim();
 }
 
-function buildSuggestion(review, corpus) {
+function buildSuggestion(review) {
   const b = band(review.stars);
-  const currFirst = firstNameOf(review.reviewer);
-  const rTokens = tokenize(review.comment);
+  const first = firstNameOf(review.reviewer);
+  const sig = extractSignals(review.comment);
 
-  // Negative reviews: only ever mirror past negative replies; never a 5★ reply.
-  let pool = corpus.filter(c => band(c.stars) === b);
-  if (b === 'neg' && !pool.length) return { text: carefulNegative(currFirst), score: 5, care: true };
-  if (!pool.length) pool = corpus;
-  if (!pool.length) {
-    return b === 'neg'
-      ? { text: carefulNegative(currFirst), score: 5, care: true }
-      : { text: defaultPositive(currFirst), score: 4, care: false };
+  if (b === 'neg') return { text: carefulNegative(first, sig), score: 6, care: true };
+
+  const text = templateReply(first, b, sig);
+  // Confidence reflects how much we could ground the reply in THIS review.
+  let score = 4;
+  if (sig.items.length) score += 3;
+  if (sig.staff.length) score += 2;
+  if (sig.occasion)     score += 1;
+  if (!sig.items.length && !sig.staff.length && !sig.occasion && (review.comment || '').trim()) score = 5;
+  if (!(review.comment || '').trim()) score = 3; // rating-only
+  return { text: Math.min(score, 10) && text, score: Math.min(score, 10), care: false };
+}
+
+// ── Menu awareness (from the Bar Salotto knowledge base) ─────────────────────
+const CHEF = 'Chef Gary Baca';
+const MENU_ITEMS = [
+  // Small bites / boards
+  'Wagyu-Veal Meatballs','Stracciatella Toast','Mozzarella Fritta','Imported Burrata','Garlic Puffs','Crispy Eggplant Stack','Butcher Board',
+  // Salads
+  'Little Gem Caesar','La Salotto Chopped','Tuscan Kale','Hearts of Palm',
+  // Pasta / pesce
+  'Salmon Genovese','Spicy Vodka','Classic Bolognese','Broccolini Pesto','Shrimp Scampi','Spaghetti & Clams','Truffle Tortellacci',
+  // Pizza
+  "Grandma's Pie",'Margherita','Florentine','Sausage','Mushroom','Spicy Soppressata','Tadella','The Salotto','Fig & Pig','Pepperoni',
+  // Desserts
+  'Tiramisu','Affogato','Kiki Skillet','Cinnamon Sugar Puffs','Italian Rainbow Cake',
+  // Cocktails
+  'Hugo Spritz','Mango Mule','Basil Gimlet','Grapefruit Aperol Spritz','Bar Salotto Old Fashioned','Negroni','Espresso Martini','Black Manhattan','Watermelon Cooler','Smoke + Maple','Blood Orange Collins','Last Word','Boozy Slush','House Sangria',
+];
+// Generic food/drink nouns → the display phrase we use if a specific item wasn't named.
+const GENERIC_TERMS = [
+  ['pizza','pizza'],['pizzas','pizzas'],['pasta','pasta'],['meatball','meatballs'],['meatballs','meatballs'],
+  ['salad','salad'],['cocktail','cocktails'],['cocktails','cocktails'],['wine','wine'],['dessert','dessert'],
+  ['bolognese','Bolognese'],['vodka','Spicy Vodka'],['burrata','burrata'],['tiramisu','Tiramisu'],['gnocchi','gnocchi'],
+  ['bruschetta','bruschetta'],['calamari','calamari'],['espresso martini','Espresso Martini'],['margherita','Margherita'],
+];
+const SERVER_CUE = /\b(server|waiter|waitress|bartender|host|hostess|took (?:great )?care|took care of us|our (?:server|waiter|bartender))\b/i;
+
+function extractSignals(comment) {
+  const text = String(comment || '');
+  const low = text.toLowerCase();
+  const items = [];
+  for (const name of MENU_ITEMS) {
+    if (low.includes(name.toLowerCase()) && !items.includes(name)) items.push(name);
   }
-
-  let best = null, bestOverlap = -1;
-  for (const c of pool) {
-    const cTokens = tokenize(c.comment);
-    const overlap = rTokens.filter(t => cTokens.includes(t)).length;
-    if (overlap > bestOverlap) { bestOverlap = overlap; best = c; }
+  if (items.length < 2) {
+    for (const [term, phrase] of GENERIC_TERMS) {
+      if (low.includes(term) && !items.some(i => i.toLowerCase() === phrase.toLowerCase())) { items.push(phrase); if (items.length >= 3) break; }
+    }
   }
+  // Staff: capitalized names appearing in a sentence that mentions a server cue.
+  const staff = [];
+  const reviewerCommon = new Set(['We','Our','The','This','That','It','They','Bar','Salotto','Grazie','Great','Excellent','Amazing','Best']);
+  for (const sentence of text.split(/[.!?]+/)) {
+    if (!SERVER_CUE.test(sentence)) continue;
+    for (const m of sentence.matchAll(/\b([A-Z][a-z]{2,})\b/g)) {
+      const n = m[1];
+      if (!reviewerCommon.has(n) && !staff.includes(n) && staff.length < 2) staff.push(n);
+    }
+  }
+  // Occasion
+  let occasion = '';
+  if (/\bbirthday\b/i.test(low)) occasion = 'birthday celebration';
+  else if (/\banniversary\b/i.test(low)) occasion = 'anniversary';
+  else if (/\bdate night\b/i.test(low)) occasion = 'date night';
+  else if (/\b(wedding|rehearsal|engagement)\b/i.test(low)) occasion = 'special occasion';
+  else if (/\b(first time|first visit)\b/i.test(low)) occasion = 'first visit';
+  else if (/\b(family|kids|children)\b/i.test(low)) occasion = 'family dinner';
+  return { items: items.slice(0, 3), staff, occasion };
+}
 
-  const text = adaptReply(best.reply, firstNameOf(best.reviewer), currFirst);
-  const denom = Math.max(rTokens.length, 3);
-  let score = Math.round(Math.min(10, 4 + (bestOverlap / denom) * 8));
-  if (band(best.stars) !== b) score = Math.max(3, score - 3);   // cross-band borrow → less confident
-  if (!rTokens.length) score = Math.min(score, 5);              // rating-only review → low confidence
-  const care = (b === 'neg');
-  if (care) score = Math.min(score, 7);
-  return { text, score, care };
+function listJoin(a) {
+  if (a.length <= 1) return a[0] || '';
+  if (a.length === 2) return `${a[0]} and ${a[1]}`;
+  return `${a.slice(0, -1).join(', ')}, and ${a[a.length - 1]}`;
+}
+
+function templateReply(first, b, sig) {
+  const hi = first ? `Thank you so much, ${first}!` : 'Thank you so much!';
+  const bits = [];
+  if (sig.items.length) {
+    bits.push(`we're thrilled the ${listJoin(sig.items)} ${sig.items.length > 1 ? 'were' : 'was'} a highlight`);
+  } else if (sig.occasion) {
+    bits.push(`we're so glad we could be part of your ${sig.occasion}`);
+  } else {
+    bits.push(`we're so glad you enjoyed your visit to Bar Salotto`);
+  }
+  if (sig.staff.length) {
+    bits.push(`we'll be sure to pass your kind words along to ${listJoin(sig.staff)}`);
+  }
+  let mid = bits.join(', and ');
+  mid = mid.charAt(0).toUpperCase() + mid.slice(1) + '.';
+  const close = b === 'neu'
+    ? `We've noted your feedback and would love the chance to make your next visit even better.`
+    : `We can't wait to welcome you back!`;
+  return `${hi} ${mid} ${close}`;
 }
 
 // Words that can follow a greeting comma but are NOT a person's name.
@@ -334,10 +427,13 @@ function swapGreetingName(text, currFirst) {
   return text.replace(re, (full, pre, nm, punc) => pre.replace(/[,]\s*$/, '') + punc);
 }
 
-function carefulNegative(name) {
+function carefulNegative(name, sig) {
   const n = name ? `, ${name}` : '';
-  return `We're so sorry to hear about your experience${n} — this isn't the standard we hold ourselves to, ` +
-    `and we take your feedback seriously. We'd genuinely like to make it right; please reach out to us at ` +
+  const issue = (sig && sig.items && sig.items.length)
+    ? ` We're sorry the ${listJoin(sig.items)} didn't live up to what we hope to serve.`
+    : '';
+  return `We're so sorry to hear about your experience${n} — this isn't the standard we hold ourselves to.${issue} ` +
+    `We take your feedback seriously and would genuinely like to make it right; please reach out to us at ` +
     `ciao@barsalotto.com so we can follow up personally.`;
 }
 function defaultPositive(name) {

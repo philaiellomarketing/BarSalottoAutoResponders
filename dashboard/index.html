@@ -179,7 +179,7 @@
     <div class="state" id="loading"><div class="mk"><span class="spinner"></span></div><h3>Loading inbox…</h3></div>
     <div id="list"></div>
     <div class="state" id="empty" style="display:none"><div class="mk">✓</div><h3>All clear</h3><p>No pending emails in this folder.</p></div>
-    <div class="state" id="error" style="display:none"><div class="mk">!</div><h3>Couldn't load inbox</h3><p id="error-detail"></p><button class="btn" style="margin-top:12px" onclick="loadInbox()">Retry</button></div>
+    <div class="state" id="error" style="display:none"><div class="mk">!</div><h3>Couldn't load inbox</h3><p id="error-detail"></p><div style="margin-top:14px;display:flex;gap:8px;justify-content:center"><button class="btn" onclick="loadInbox()">Retry</button><button class="btn btn-primary" id="error-reconnect" style="display:none" onclick="openConnect()">Reconnect Gmail</button></div></div>
   </aside>
   <section class="detail-pane" id="detail-pane">
     <div class="detail-empty" id="detail-empty"><div class="mark">✉</div><div>Select an email to read and reply</div></div>
@@ -237,8 +237,14 @@ async function loadInbox(){
   document.getElementById('list').innerHTML=''; document.getElementById('empty').style.display='none'; document.getElementById('error').style.display='none';
   try {
     const res = await fetch('/api/gmail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'list'})});
-    if (res.status===503){ showError('Gmail not connected. Click Accounts to connect.'); return; }
-    if (!res.ok){ const e=await res.json().catch(()=>({})); showError(e.error||('Error '+res.status)); return; }
+    if (res.status===503){ showError('Gmail not connected. Click Accounts to connect.', true); return; }
+    if (!res.ok){
+      const e=await res.json().catch(()=>({}));
+      if (e.error==='token_refresh_failed') {
+        showError('Gmail sign-in expired. This usually means the Google OAuth app is in "Testing" mode (tokens expire after 7 days). Click Reconnect, then publish the OAuth app to remove the 7-day limit.', true);
+      } else showError(e.error||('Error '+res.status));
+      return;
+    }
     const { items } = await res.json();
     ITEMS = (items||[]).map(it => ({ ...it, flagged: iState(it.id).flagged ?? it.flagged }));
     document.getElementById('loading').style.display='none';
@@ -246,9 +252,10 @@ async function loadInbox(){
     if (selectedId && ITEMS.find(i=>i.id===selectedId)) renderDetail(selectedId); else clearDetail();
   } catch(e){ showError(e.message); }
 }
-function showError(msg){ document.getElementById('loading').style.display='none'; document.getElementById('error-detail').textContent=msg; document.getElementById('error').style.display='block'; }
+function showError(msg, reconnect){ document.getElementById('loading').style.display='none'; document.getElementById('error-detail').textContent=msg; document.getElementById('error-reconnect').style.display=reconnect?'inline-flex':'none'; document.getElementById('error').style.display='block'; }
 
-function visible(){ return ITEMS.filter(it => !iState(it.id).done && (activeFolder==='all'||it.category===activeFolder)); }
+function snoozed(id){ const u=iState(id).snoozeUntil; return u && u>Date.now(); }
+function visible(){ return ITEMS.filter(it => !iState(it.id).done && !snoozed(it.id) && (activeFolder==='all'||it.category===activeFolder)); }
 
 function renderList(){
   const items = visible();
@@ -274,7 +281,7 @@ function rowHtml(it){
 
 function updateCounts(){
   const cats=['all','dining','catering','creator','review','donation','vendor','job']; const c={};
-  ITEMS.forEach(it=>{ if(iState(it.id).done) return; c.all=(c.all||0)+1; c[it.category]=(c[it.category]||0)+1; });
+  ITEMS.forEach(it=>{ if(iState(it.id).done||snoozed(it.id)) return; c.all=(c.all||0)+1; c[it.category]=(c[it.category]||0)+1; });
   cats.forEach(k=>{ const el=document.getElementById('c-'+k); if(el) el.textContent=c[k]||0; });
   document.getElementById('stat-pending').textContent=c.all||0;
 }
@@ -314,9 +321,11 @@ function renderDetail(id){
   </div>
   <textarea class="reply-box" id="reply" oninput="onReplyInput('${id}',this.value)">${esc(reply)}</textarea>
   <div class="composer-actions">
-    <button class="btn btn-primary" id="send-btn" onclick="sendReply()">Send reply</button>
+    <button class="btn btn-primary" id="send-btn" onclick="sendReply(false)">Send reply</button>
+    ${it.replyAllCc ? `<button class="btn" id="sendall-btn" onclick="sendReply(true)" title="Also copies ${esc(it.replyAllCc)}">Reply all</button>` : ''}
     <button class="btn" onclick="saveDraft()">Save draft</button>
     <span class="spacer"></span>
+    <button class="btn" onclick="snooze()">Remind me later ▾</button>
     <button class="btn" onclick="mailAction('archive')">Archive</button>
     <button class="btn btn-danger" onclick="mailAction('trash')">Trash</button>
     <button class="btn" id="flag-btn" onclick="toggleFlag()">${it.flagged?'Unflag':'Flag'}</button>
@@ -330,15 +339,30 @@ function onReplyInput(id,val){
   if(head && val!==it.draft && !head.querySelector('.edited')) head.insertAdjacentHTML('beforeend',' <span class="edited">EDITED</span>');
 }
 
-async function sendReply(){
+async function sendReply(all){
   const it=ITEMS.find(i=>i.id===selectedId); if(!it) return;
   const s=iState(it.id); const body=(s.edited_draft!=null?s.edited_draft:it.draft).trim();
   if(!body){ toast('Reply is empty.','warning'); return; }
   if(!it.email){ toast('No recipient address on this email.','warning'); return; }
-  const btn=document.getElementById('send-btn'); if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
-  const res=await callApi('send',{id:it.id,threadId:it.threadId,to:it.email,subject:replySubject(it.subject),body});
-  if(res.ok){ toast('Reply sent to '+it.sender+'.','success'); markDone(it.id); }
-  else { toast('Send failed'+(res.detail?': '+res.detail:'')+'.','warning'); if(btn){ btn.disabled=false; btn.textContent='Send reply'; } }
+  const btnId=all?'sendall-btn':'send-btn'; const btn=document.getElementById(btnId); const orig=btn&&btn.textContent;
+  if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
+  const payload={id:it.id,threadId:it.threadId,to:it.email,subject:replySubject(it.subject),body};
+  if(all&&it.replyAllCc) payload.cc=it.replyAllCc;
+  const res=await callApi('send',payload);
+  if(res.ok){ toast((all?'Reply-all sent for ':'Reply sent to ')+it.sender+'.','success'); markDone(it.id); }
+  else { toast('Send failed'+(res.detail?': '+res.detail:'')+'.','warning'); if(btn){ btn.disabled=false; btn.textContent=orig; } }
+}
+
+function snooze(){
+  const it=ITEMS.find(i=>i.id===selectedId); if(!it) return;
+  const choice=(prompt('Remind me in how long? Type: 3h, tomorrow (9am), or a number of hours','tomorrow')||'').trim().toLowerCase();
+  if(!choice) return;
+  const now=new Date(); let until;
+  if(choice==='tomorrow'){ until=new Date(now); until.setDate(until.getDate()+1); until.setHours(9,0,0,0); }
+  else { const h=parseInt(choice)|| (choice.endsWith('h')?parseInt(choice):3); until=new Date(now.getTime()+h*3600*1000); }
+  setIState(it.id,{snoozeUntil:until.getTime()});
+  ITEMS=ITEMS.filter(i=>i.id!==it.id); clearDetail(); renderList();
+  toast('Snoozed until '+until.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),'info');
 }
 async function saveDraft(){
   const it=ITEMS.find(i=>i.id===selectedId); if(!it) return;

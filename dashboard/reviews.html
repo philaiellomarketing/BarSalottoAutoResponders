@@ -259,6 +259,10 @@ let activeTab = 'unanswered';
 let data = { answered: [], unanswered: [], meta: { total: 0, answered: 0, unanswered: 0 } };
 const drafts = {};
 const MANUAL_KEY = 'bs:manual-reviews';
+const ANSWERED_KEY = 'bs:gbp:answered';
+function loadAnswered() { try { return new Set(JSON.parse(localStorage.getItem(ANSWERED_KEY) || '[]')); } catch { return new Set(); } }
+let answeredSet = loadAnswered();
+function markAnsweredLocal(name) { answeredSet.add(name); localStorage.setItem(ANSWERED_KEY, JSON.stringify([...answeredSet])); }
 let gbpConnected = false;
 let showAddPanel = false;
 
@@ -317,6 +321,14 @@ async function load() {
     if (!res.ok) { renderError(await res.text()); return; }
     gbpConnected = true;
     data = await res.json();
+    // Reviews we've already posted a reply to (this browser) — Google can lag in
+    // reflecting the reply, so keep them out of "Needs Reply" instead of reappearing.
+    if (answeredSet.size && Array.isArray(data.unanswered)) {
+      const moved = data.unanswered.filter(r => answeredSet.has(r.reviewName));
+      data.unanswered = data.unanswered.filter(r => !answeredSet.has(r.reviewName));
+      moved.forEach(r => { r.ownerReply = r.ownerReply || '(reply posted — pending on Google)'; data.answered.unshift(r); });
+      recalcMeta();
+    }
     data.unanswered.forEach(r => { if (!drafts[r.reviewName]) drafts[r.reviewName] = r.suggested || suggestDraft(r); });
     // Also merge any manual reviews not yet on Google
     loadManualReviews();
@@ -634,6 +646,7 @@ async function post(reviewName) {
     });
     if (res.ok) {
       toast('Reply posted to Google!', 'success');
+      markAnsweredLocal(reviewName);
       const idx = data.unanswered.findIndex(x => x.reviewName === reviewName);
       if (idx > -1) {
         const rv = data.unanswered.splice(idx, 1)[0];

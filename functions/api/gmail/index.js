@@ -30,7 +30,7 @@ export async function onRequestPost(context) {
   try { body = await request.json(); }
   catch { return json({ error: 'invalid_json' }, 400, corsHeaders); }
 
-  const { action, id, threadId: bodyThreadId, to, subject, body: draftBody, flagged } = body;
+  const { action, id, threadId: bodyThreadId, to, cc, subject, body: draftBody, flagged } = body;
 
   const creds = await getCredentials(env);
   if (!creds) {
@@ -57,7 +57,7 @@ export async function onRequestPost(context) {
   const threadId = bodyThreadId || await getThreadId(env, id);
 
   switch (action) {
-    case 'send':         return handleSend(accessToken, to, subject, draftBody, threadId, corsHeaders);
+    case 'send':         return handleSend(accessToken, to, cc, subject, draftBody, threadId, corsHeaders);
     case 'create_draft': return handleCreateDraft(accessToken, to, subject, draftBody, threadId, corsHeaders);
     case 'archive':      return handleArchive(accessToken, threadId, corsHeaders);
     case 'trash':        return handleTrash(accessToken, threadId, corsHeaders);
@@ -116,6 +116,17 @@ async function fetchThreadItem(id, listSnippet, accessToken, env) {
   const category = categorize(subject, from, `${snippet} ${fullBody}`);
   const draft    = generateDraft(category, senderName);
 
+  // Reply-all recipients: everyone on the original To + Cc, minus us and the
+  // sender (who is already the primary reply recipient).
+  const OURS = /(ciao|events|thomas|emily|debbie)@barsalotto\.com/i;
+  const others = [];
+  for (const raw of `${hdrs.to || ''},${hdrs.cc || ''}`.split(',')) {
+    const { email } = parseFrom(raw.trim());
+    if (email && !OURS.test(email) && email.toLowerCase() !== (senderEmail || '').toLowerCase()
+        && !others.includes(email)) others.push(email);
+  }
+  const replyAllCc = others.join(', ');
+
   // Cache thread ID in KV so archive/trash/flag actions can resolve it
   if (env.BS_KV) {
     env.BS_KV.put(`bs:thread:${id}`, id, { expirationTtl: 86400 * 14 }).catch(() => {});
@@ -134,6 +145,7 @@ async function fetchThreadItem(id, listSnippet, accessToken, env) {
     dateISO,
     snippet,
     body:      fullBody,
+    replyAllCc,
     category,
     draft,
     priority:  priorityFor(category),
@@ -249,7 +261,7 @@ function generateDraft(category, senderName) {
 
 // ── Action handlers ───────────────────────────────────────────────────────────
 
-async function handleSend(accessToken, to, subject, body, threadId, corsHeaders) {
+async function handleSend(accessToken, to, cc, subject, body, threadId, corsHeaders) {
   if (!to)   return json({ error: 'missing_recipient' }, 400, corsHeaders);
   if (!body) return json({ error: 'empty_body' }, 400, corsHeaders);
 
@@ -270,7 +282,7 @@ async function handleSend(accessToken, to, subject, body, threadId, corsHeaders)
     } catch {}
   }
 
-  const raw = buildMimeMessage(to, subject, body, { inReplyTo, references });
+  const raw = buildMimeMessage(to, subject, body, { inReplyTo, references, cc });
   const payload = { raw };
   if (threadId) payload.threadId = threadId;
 
@@ -356,11 +368,12 @@ async function gmailFetch(accessToken, method, path, body) {
 
 function buildMimeMessage(to, subject, bodyText, threading = {}) {
   const from = 'ciao@barsalotto.com';
-  const { inReplyTo, references } = threading;
+  const { inReplyTo, references, cc } = threading;
   const refs = [references, inReplyTo].filter(Boolean).join(' ');
   const mime = [
     `From: Phil <${from}>`,
     to ? `To: ${to}` : '',
+    cc ? `Cc: ${cc}` : '',
     `Subject: ${subject}`,
     inReplyTo ? `In-Reply-To: ${inReplyTo}` : '',
     refs ? `References: ${refs}` : '',
